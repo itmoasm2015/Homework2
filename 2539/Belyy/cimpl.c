@@ -122,7 +122,6 @@ Matrix matrixMul(Matrix a, Matrix b) {
     unsigned int p = mx_b->cols;
 
     struct Matrix_t * new_mx = matrixNew(m, p);
-    size_t mx_size = (size_t) m * p;
 
     size_t mx_index = 0;
     for (unsigned int i = 0; i < m; i++) {

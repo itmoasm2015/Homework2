@@ -1,6 +1,6 @@
 CC = gcc
 AR = ar
-CC_OPTS = -std=c99 -m32 -O2 -L. -I../../include
+CC_OPTS = -Wall -Wextra -std=c99 -m32 -O2 -L. -I../../include
 
 all: tester
 

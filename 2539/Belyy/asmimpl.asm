@@ -337,7 +337,7 @@ matrixMul:          mov r8, [rdi + cols]
 .mul_loop_2:        dec r9
                     mov r10, rbx
                     shr r10, 2
-                    movss xmm0, [fzero]
+                    xorps xmm0, xmm0
 .mul_loop_3:        dec r10
                     movups xmm1, [rdi]              ; calculate dot product
                     movups xmm2, [rsi]
@@ -367,9 +367,3 @@ matrixMul:          mov r8, [rdi + cols]
                     ret
 .failure:           xor rax, rax
                     ret
-
-
-section .rodata
-
-
-fzero               dd 0.0

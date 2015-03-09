@@ -262,7 +262,7 @@ matrixTranspose:    push rdi
                     xor rcx, rcx
 .transpose_loop_1:  xor rdx, rdx
                     lea r11, [rdi + rcx * 4]
-[.transpose_loop_2:  movups xmm0, [r10]
+.transpose_loop_2:  movups xmm0, [r10]
                     movss [r11], xmm0               ; [r11] = [r10](0..31)
                     psrldq xmm0, 4
                     lea r11, [r11 + r8 * 4]

@@ -18,12 +18,15 @@ global matrixTranspose
 global matrixMul
 
 
+; `cells` are stored unaligned, but both rows and cols are aligned by 4
+; so that one can use them in SSE instructions.
+
                     struc   Matrix_t
-rows:               resq    1
-cols:               resq    1
-rows_align:         resq    1
-cols_align:         resq    1
-cells:              resq    1
+rows:               resq    1                       ; number of rows
+cols:               resq    1                       ; number of cols
+rows_align:         resq    1                       ; true number of rows (aligned by 4 bytes)
+cols_align:         resq    1                       ; true number of cols (aligned by 4 bytes)
+cells:              resq    1                       ; ptr to float array
                     endstruc
 
 
@@ -46,6 +49,7 @@ matrixNew:          push rdi
                     pop rdi
                     mov [r8 + rows], rdi
                     mov [r8 + cols], rsi
+; Align rows and cols by 4
 ; RDI - ceil(rows / 4) * 4
 ; RSI - ceil(cols / 4) * 4
                     dec rdi
@@ -62,7 +66,7 @@ matrixNew:          push rdi
                     lea rdi, [rdi * 4]
                     push rdi
                     push r8
-                    call malloc
+                    call malloc                     ; allocate space for cells
                     pop r8
                     pop rcx
                     shr rcx, 2
@@ -104,9 +108,9 @@ matrixClone:        mov r8, rdi
 
 matrixDelete:       push rdi
                     mov rdi, [rdi + cells]
-                    call free
+                    call free                       ; deallocate cells
                     pop rdi
-                    call free
+                    call free                       ; deallocate matrix
                     ret
 
 ; unsigned int matrixGetRows(Matrix matrix);
@@ -209,11 +213,11 @@ matrixScale:
 matrixAdd:          mov r8, [rdi + rows]
                     mov r9, [rsi + rows]
                     cmp r8, r9
-                    jne .failure
+                    jne .failure                    ; a.rows != b.rows
                     mov r8, [rdi + cols]
                     mov r9, [rsi + cols]
                     cmp r8, r9
-                    jne .failure
+                    jne .failure                    ; a.cols != b.cols
                     push rsi
                     call matrixClone
                     pop rsi
@@ -258,17 +262,17 @@ matrixTranspose:    push rdi
                     xor rcx, rcx
 .transpose_loop_1:  xor rdx, rdx
                     lea r11, [rdi + rcx * 4]
-.transpose_loop_2:  movups xmm0, [r10]
-                    movss [r11], xmm0
+[.transpose_loop_2:  movups xmm0, [r10]
+                    movss [r11], xmm0               ; [r11] = [r10](0..31)
                     psrldq xmm0, 4
                     lea r11, [r11 + r8 * 4]
-                    movss [r11], xmm0
+                    movss [r11], xmm0               ; [r11] = [r10](32..63)
                     psrldq xmm0, 4
                     lea r11, [r11 + r8 * 4]
-                    movss [r11], xmm0
+                    movss [r11], xmm0               ; [r11] = [r10](64..95)
                     psrldq xmm0, 4
                     lea r11, [r11 + r8 * 4]
-                    movss [r11], xmm0
+                    movss [r11], xmm0               ; [r11] = [r10](96..127)
                     lea r11, [r11 + r8 * 4]
                     lea rdx, [rdx + 4]
                     lea r10, [r10 + 16]
@@ -299,12 +303,14 @@ matrixTranspose:    push rdi
 matrixMul:          mov r8, [rdi + cols]
                     mov r9, [rsi + rows]
                     cmp r8, r9
-                    jne .failure
+                    jne .failure                    ; a.cols != b.rows
                     push rbx
                     push rbp
                     push rdi
                     push rsi
                     mov rdi, rsi
+; We transpose the `b` matrix so we could easy load consecutive
+; 4 floats into xmm0 from `a` and `b` and calculate dot product.
                     call matrixTranspose
                     pop rsi
                     pop rdi
@@ -354,7 +360,7 @@ matrixMul:          mov r8, [rdi + cols]
                     jnz .mul_loop_1
                     pop rdi
                     push rax
-                    call matrixDelete
+                    call matrixDelete               ; deallocate b^T
                     pop rax
                     pop rbp
                     pop rbx

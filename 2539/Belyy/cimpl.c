@@ -9,7 +9,7 @@ struct Matrix_t {
 };
 
 
-Matrix matrixNew(unsigned int rows, unsigned int cols) {
+Matrix c_matrixNew(unsigned int rows, unsigned int cols) {
     struct Matrix_t * mx = malloc(sizeof(struct Matrix_t));
     
     mx->rows = rows;
@@ -25,10 +25,10 @@ Matrix matrixNew(unsigned int rows, unsigned int cols) {
     return mx;
 }
 
-Matrix matrixClone(Matrix matrix) {
+Matrix c_matrixClone(Matrix matrix) {
     // Assuming `matrix` points to a valid object.
     struct Matrix_t * mx = (struct Matrix_t *) matrix;
-    struct Matrix_t * new_mx = matrixNew(mx->rows, mx->cols);
+    struct Matrix_t * new_mx = c_matrixNew(mx->rows, mx->cols);
 
     // TODO : use efficient memory copying
     size_t mx_size = (size_t) mx->rows * mx->cols;
@@ -39,7 +39,7 @@ Matrix matrixClone(Matrix matrix) {
     return new_mx;
 }
 
-void matrixDelete(Matrix matrix) {
+void c_matrixDelete(Matrix matrix) {
     // Assuming `matrix` points to a valid object.
     struct Matrix_t * mx = (struct Matrix_t *) matrix;
 
@@ -47,21 +47,21 @@ void matrixDelete(Matrix matrix) {
     free(mx);
 }
 
-unsigned int matrixGetRows(Matrix matrix) {
+unsigned int c_matrixGetRows(Matrix matrix) {
     // Assuming `matrix` points to a valid object.
     struct Matrix_t * mx = (struct Matrix_t *) matrix;
 
     return mx->rows;
 }
 
-unsigned int matrixGetCols(Matrix matrix) {
+unsigned int c_matrixGetCols(Matrix matrix) {
     // Assuming `matrix` points to a valid object.
     struct Matrix_t * mx = (struct Matrix_t *) matrix;
 
     return mx->cols;
 }
 
-float matrixGet(Matrix matrix, unsigned int row, unsigned int col) {
+float c_matrixGet(Matrix matrix, unsigned int row, unsigned int col) {
     // Assuming `matrix` points to a valid object.
     struct Matrix_t * mx = (struct Matrix_t *) matrix;
     size_t index = (size_t) row * mx->cols + col;
@@ -69,7 +69,7 @@ float matrixGet(Matrix matrix, unsigned int row, unsigned int col) {
     return mx->cells[index];
 }
 
-void matrixSet(Matrix matrix, unsigned int row, unsigned int col, float value) {
+void c_matrixSet(Matrix matrix, unsigned int row, unsigned int col, float value) {
     // Assuming `matrix` points to a valid object.
     struct Matrix_t * mx = (struct Matrix_t *) matrix;
     size_t mx_index = (size_t) row * mx->cols + col;
@@ -77,9 +77,9 @@ void matrixSet(Matrix matrix, unsigned int row, unsigned int col, float value) {
     mx->cells[mx_index] = value;
 }
 
-Matrix matrixScale(Matrix matrix, float k) {
+Matrix c_matrixScale(Matrix matrix, float k) {
     // Assuming `matrix` points to a valid object.
-    struct Matrix_t * new_mx = matrixClone(matrix);
+    struct Matrix_t * new_mx = c_matrixClone(matrix);
     size_t mx_size = (size_t) new_mx->rows * new_mx->cols;
 
     for (size_t i = 0; i < mx_size; i++) {
@@ -89,7 +89,7 @@ Matrix matrixScale(Matrix matrix, float k) {
     return new_mx;
 }
 
-Matrix matrixAdd(Matrix a, Matrix b) {
+Matrix c_matrixAdd(Matrix a, Matrix b) {
     // Assuming both `a` and `b` point to valid objects.
     struct Matrix_t * mx_a = (struct Matrix_t *) a;
     struct Matrix_t * mx_b = (struct Matrix_t *) b;
@@ -98,17 +98,17 @@ Matrix matrixAdd(Matrix a, Matrix b) {
         return NULL;
     }
 
-    struct Matrix_t * new_mx = matrixNew(mx_a->rows, mx_a->cols);
+    struct Matrix_t * new_mx = c_matrixClone(a);
     size_t mx_size = (size_t) new_mx->rows * new_mx->cols;
 
     for (size_t i = 0; i < mx_size; i++) {
-        new_mx->cells[i] = mx_a->cells[i] + mx_b->cells[i];
+        new_mx->cells[i] += mx_b->cells[i];
     }
 
     return new_mx;
 }
 
-Matrix matrixMul(Matrix a, Matrix b) {
+Matrix c_matrixMul(Matrix a, Matrix b) {
     // Assuming both `a` and `b` point to valid objects.
     struct Matrix_t * mx_a = (struct Matrix_t *) a;
     struct Matrix_t * mx_b = (struct Matrix_t *) b;
@@ -121,7 +121,7 @@ Matrix matrixMul(Matrix a, Matrix b) {
     unsigned int n = mx_a->cols;
     unsigned int p = mx_b->cols;
 
-    struct Matrix_t * new_mx = matrixNew(m, p);
+    struct Matrix_t * new_mx = c_matrixNew(m, p);
 
     size_t mx_index = 0;
     for (unsigned int i = 0; i < m; i++) {

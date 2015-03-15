@@ -93,7 +93,7 @@ TEST(hwmatrices, randomSetGet) {
 namespace {
     const unsigned int scalarRows = 100;
     const unsigned int scalarColumns = 100;
-    const unsigned int scalarIterations = 1000;
+    const unsigned int scalarIterations = 100;
 
     pair genRandomPair(unsigned int rows, unsigned int cols) {
         pair result(rows, cols);
@@ -117,8 +117,71 @@ TEST(hwmatrices, randomScalarMul) {
         pair old(test.hw, test.sample, scalarRows, scalarColumns);
         Matrix copy = matrixScale(test.hw, .5);
         test.sample *= .5;
+        // check if source matrix is changed
         assertEqMatrices(old);
         test.hw = copy;
         assertEqMatrices(test);
     }
 }
+
+TEST(hwmatrices, incorrectAdd) {
+    Matrix first = matrixNew(10, 20);
+    Matrix second = matrixNew(20, 10);
+    Matrix third = matrixNew(100, 100);
+
+    if (matrixAdd(first, second) != NULL || matrixAdd(second, first) != NULL ||
+        matrixAdd(first, third) != NULL  || matrixAdd(third, first) != NULL  ||
+        matrixAdd(second, third) != NULL || matrixAdd(third, second) != NULL) {
+        FAIL();
+    }
+
+    matrixDelete(first);
+    matrixDelete(second);
+    matrixDelete(third);
+}
+
+namespace {
+    const unsigned int addRows = 100;
+    const unsigned int addColumns = 100;
+    const unsigned int addIterations = 100;
+}
+
+TEST(hwmatrices, randomAdd) {
+    for (int i = 0; i < addIterations; i++) {
+        pair test1 = genRandomPair(addRows, addColumns);
+        pair test2 = genRandomPair(addRows, addColumns);
+        pair old1(test1.hw, test1.sample, addRows, addColumns);
+        pair old2(test2.hw, test2.sample, addRows, addColumns);
+        Matrix copy1 = matrixAdd(test1.hw, test2.hw);
+        Matrix copy2 = matrixAdd(test2.hw, test1.hw);
+        test1.sample += test2.sample;
+        test2.sample = test1.sample;
+        // check if source matrices are changed
+        assertEqMatrices(old1);
+        assertEqMatrices(old2);
+        test1.hw = copy1;
+        test2.hw = copy2;
+        assertEqMatrices(test1);
+        assertEqMatrices(test2);
+    }
+}
+/*    pair test1 = genRandomPair(addRows, addColumns);
+    for (int i = 0; i < addRows; i++) {
+        for (int j = 0; j < addColumns; j++) {
+            matrixSet(test1.hw, i, j, 1);
+        }
+    }
+    pair test2 = genRandomPair(addRows, addColumns);
+    for (int i = 0; i < addRows; i++) {
+        for (int j = 0; j < addColumns; j++) {
+            matrixSet(test2.hw, i, j, 1);
+        }
+    }
+    Matrix copy = matrixAdd(test1.hw, test2.hw);
+    for (int i = 0; i < addRows; i++) {
+        for (int j = 0; j < addColumns; j++) {
+            std::cout << matrixGet(copy, i, j) << " ";
+        }
+        std::cout << std::endl;
+    }
+    matrixDelete(copy);*/

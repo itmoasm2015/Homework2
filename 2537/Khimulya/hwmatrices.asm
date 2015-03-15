@@ -163,6 +163,7 @@ getAlmostSize:
 ; @return rax pointer to the copy
 ; @return rdx almost size of the matrix
 matrixCopy:
+        push rsi
         push rdi
         call matrixGetRows
         mov r8, rax
@@ -181,6 +182,7 @@ matrixCopy:
                 jnz .loop
         mov rax, r8
         pop rdx
+        pop rsi
         ret
 
 ; Matrix matrixScale(Matrix matrix, float k);
@@ -204,4 +206,46 @@ matrixScale:
                 cmp rdx, rax
                 jne .loop
         pop rax
+        ret
+
+; Matrix matrixAdd(Matrix a, Matrix b);
+;
+; corrupts rdx
+; corrupts rsi
+; corrupts r8
+;
+; @param rdi pointer to the matrix a
+; @param rsi pointer to the matrix b
+; @return rax pointer to the result matrix
+matrixAdd:
+        call matrixGetRows
+        mov r8, rax
+        xchg rdi, rsi
+        call matrixGetRows
+        mov rdx, rax
+        cmp r8, rdx
+        jne .fail                           ; make sure sizes of matrices are equal
+        call matrixGetCols
+        mov r8, rax
+        xchg rdi, rsi                       ; after two swaps rdi and rsi are set as in @param
+        call matrixGetCols
+        mov rdx, rax
+        cmp r8, rdx
+        jne .fail
+
+        call matrixCopy
+        push rax
+        add rax, 16                         ; start of data
+        add rsi, 16
+        sub rdx, 8                          ; size of data
+        .loop:
+                movups xmm0, [rax + rdx - 16]
+                addps xmm0, [rsi + rdx - 16]
+                movups [rax + rdx - 16], xmm0
+                sub rdx, 16
+                jnz .loop
+        pop rax
+        ret
+    .fail:
+        xor rax, rax
         ret

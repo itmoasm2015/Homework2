@@ -108,11 +108,25 @@ matrixScale:
     ret
 
 matrixAdd:
-    call matrixClone
+    mov r8, rdi
+    mov r9, rsi
+
+    mov rdi, [r8 + initRows]
+    cmp rdi, [r9 + initRows]
+    jne .error
+    mov rsi, [r8 + initCols]
+    cmp rsi, [r9 + initCols]
+    jne .error
+
+    call matrixNew
     mov rcx, [rdi + rows]
     imul rcx, [rdi + cols]
     .loop
-        movups xmm0, [rsi + data + 4 * rcx - 4]
-        addss xmm0, [rax + data + 4 * rcx - 4]
+        movups xmm0, [r8 + data + 4 * rcx - 4]
+        addss xmm0, [r9 + data + 4 * rcx - 4]
         movups [rax + data + 4 * rcx - 4], xmm0
         loop .loop
+    ret
+    .error
+    mov rax, 0
+    ret

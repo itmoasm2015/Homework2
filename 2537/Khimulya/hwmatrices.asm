@@ -18,8 +18,8 @@ global matrixMul
 ; Matrix matrixNew(unsigned int rows, unsigned int cols);
 ; allocate memory for a brand new matrix struct
 ;
-; @param rdi - number of rows
-; @param rsi - number of cols
+; @param rdi number of rows
+; @param rsi number of cols
 ; @return rax pointer to the matrix or null if we're out of memory
 matrixNew:
         push r8
@@ -27,10 +27,10 @@ matrixNew:
         push rsi
 
         mov r8, rdi                     ; allocate width and height such that
-        call ceilToFour                 ; width % 4 == 0 and width >= cols
-        mov rdi, r8                     ; height % 4 == 0 and height >= rows
+        call ceilToSixteen              ; width % 16 == 0 and width >= cols
+        mov rdi, r8                     ; height % 16 == 0 and height >= rows
         mov r8, rsi                     ; needed for convinient sse operations
-        call ceilToFour
+        call ceilToSixteen
         mov rsi, r8
 
         mov rax, rdi
@@ -50,16 +50,16 @@ matrixNew:
         pop r8
         ret
 
-; perform ceil(r8 / 4) * 4
+; perform ceil(r8 / 16) * 16
 ;
 ; @param r8 number to be proceed
-; @return r8 ceil(r8 / 4) * 4
-ceilToFour:
-        test r8, 3                      ; if both least bits are 0, r8 % 4 == 0 already
-        jz .done                        ; r8 % 4 != 0 (condition 1)
-        add r8, 4                       ; (floor((r8 + 4) / 4) * 4 == ceil(r8 / 4) * 4) if (condition 1)
-        shr r8, 2                       ; floor((r8 + 4) / 4)
-        shl r8, 2                       ; floor((r8 + 4) / 4) * 4
+; @return r8 ceil(r8 / 16) * 16
+ceilToSixteen:
+        test r8, 3                      ; if both least bits are 0, r8 % 16 == 0 already
+        jz .done                        ; r8 % 16 != 0 (condition 1)
+        add r8, 16                      ; (floor((r8 + 16) / 16) * 16 == ceil(r8 / 16) * 16) if (condition 1)
+        shr r8, 4                       ; floor((r8 + 16) / 16)
+        shl r8, 4                       ; floor((r8 + 16) / 16) * 16
     .done:
         ret
 
@@ -99,7 +99,7 @@ matrixGetCols:
 getAddress:
         call matrixGetCols
         mov r8, rax
-        call ceilToFour
+        call ceilToSixteen
         mov rax, r8                     ; rax == width
         mov r8, rdx
         mul rsi                         ; rax == width * row
@@ -131,4 +131,77 @@ matrixGet:
 matrixSet:
         call getAddress
         movss [rax], xmm0
+        ret
+
+; returns size of cells + 8
+; actually matrix + rax is the last element in the matrix
+;
+; corrupts rdi
+; corrupts rdx
+;
+; @param rdi number of rows
+; @param rsi number of cols
+; @return rax size of cells + 8
+getAlmostSize:
+        push r8
+        mov r8, rdi
+        call ceilToSixteen
+        mov rdi, r8
+        mov r8, rsi
+        call ceilToSixteen
+        mov rax, r8
+        mul rdi
+        lea rax, [rax * 4 + 8]
+        pop r8
+        ret
+
+; copies specified matrix
+;
+; corrupts r8
+;
+; @param rdi pointer to the source matrix
+; @return rax pointer to the copy
+; @return rdx almost size of the matrix
+matrixCopy:
+        push rdi
+        call matrixGetRows
+        mov r8, rax
+        call matrixGetCols
+        mov rsi, rax
+        mov rdi, r8
+        call matrixNew
+        mov r8, rax                         ; let r8 be pointer to the copy for awhile
+        call getAlmostSize
+        pop rdi                             ; rdi + rax is now the last element of the source
+        push rax
+        .loop:                              ; r8  + rax is now the last element of the copy
+                mov rdx, [rdi + rax]
+                mov [r8 + rax], rdx
+                sub rax, 8
+                jnz .loop
+        mov rax, r8
+        pop rdx
+        ret
+
+; Matrix matrixScale(Matrix matrix, float k);
+;
+; corrupts rdx
+;
+; @param rdi pointer to the source matrix
+; @param xmm0 scalar factor
+; @return rax pointer to the result matrix
+matrixScale:
+        call matrixCopy
+        lea rdx, [rdx + rax + 8]            ; end of data
+        push rax
+        add rax, 16                         ; start of data
+        shufps xmm0, xmm0, 0                ; xmm0 = (k:k:k:k)
+        .loop:
+                movups xmm1, [rax]
+                mulps xmm1, xmm0
+                movups [rax], xmm1
+                add rax, 16
+                cmp rdx, rax
+                jne .loop
+        pop rax
         ret

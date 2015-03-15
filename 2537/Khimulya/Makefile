@@ -1,8 +1,8 @@
 CC = g++
 ASM = yasm
 AR = ar
-CPP_FLAGS = -std=c++11 -m64 -L. -I../../include -g dwarf2
-LD_FLAGS = -L. -lgmp -lgmpxx -lpthread -lboost_math_tr1
+CXX_FLAGS = -std=c++11 -m64 -L. -I../../include -g
+LD_FLAGS = -L. -lgmp -lgmpxx -lpthread -lboost_math_tr1 -lhw
 ASM_FLAGS = -f elf64 -g dwarf2
 GTEST = gtest/gtest-all.cc gtest/gtest.h gtest/gtest_main.cc
 

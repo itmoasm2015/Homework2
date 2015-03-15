@@ -104,7 +104,6 @@ matrixScale:
 	push rsi
 
 	mov r12, rdi		; r12 = *values
-	mov r13, rsi		; r13 = cols:rows
 
 	mov eax, esi		; rax=0:rows
 
@@ -115,8 +114,8 @@ matrixScale:
 	mov rbx, rax		; rbx = rows*⟦cols⟧⁴
 
 	;; allocate new matrix
-	mov rdi, rax		; rdi = ⟦rows*cols/4⟧
-	mov rsi, 16		; rsi = 16
+	mov rdi, rax		; rdi = rows*⟦cols⟧⁴
+	mov rsi, 4		; rsi = 4
 	;; rdi=rows*⟦cols⟧⁴
 	;; rsi=4
 	call calloc
@@ -138,6 +137,65 @@ matrixScale:
 .end:
 	pop rdx			; rdx=cols:rows
 
+	pop r12
+	pop rbx
+
+	;; rax=*new_values
+	;; rdx=cols:rows
+	ret
+	
+matrixAdd:	
+	;; rdi=*values1
+	;; rsi=cols1:rows1
+	;; rdx=*values2
+	;; rcx=cols2:rows2
+
+	cmp rsi, rcx
+	je .dims_are_ok
+.dims_are_bad:
+	xor rax, rax
+	xor rdx, rdx
+	ret
+	
+.dims_are_ok:	
+	push rbx
+	push r12
+	push r13
+
+	push rsi		; [rsp] = cols:rows
+
+	mov r12, rdi		; r12 = values1
+	mov r13, rdx		; r13 = values2
+
+	mov eax, esi		; rax=0:rows
+
+	shr rsi, 32		; rsi = 0:cols
+	upto4 rsi		; rsi = ⟦cols⟧⁴
+	
+	mul rsi			; rax = rows*⟦cols⟧⁴
+	mov rbx, rax		; rbx = rows*⟦cols⟧⁴
+
+	;; allocate new matrix
+	mov rdi, rax		; rdi = rows*⟦cols⟧⁴
+	mov rsi, 4		; rsi = 4
+	;; rdi=rows*⟦cols⟧⁴
+	;; rsi=4
+	call calloc
+	;; rax=*new_values
+	
+.loop:
+	sub rbx, 4
+	jnge .end
+
+	movups xmm0, [r12+4*rbx]
+	movups xmm1, [r13+4*rbx]
+	addps xmm0, xmm1
+	movups [rax+4*rbx], xmm0
+	jmp .loop
+.end:
+	pop rdx			; rdx=cols:rows
+
+	pop r13
 	pop r12
 	pop rbx
 

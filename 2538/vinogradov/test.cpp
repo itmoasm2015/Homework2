@@ -75,6 +75,23 @@ struct Cmat {
   }
 };
 
+Cmat cadd(Cmat a, Cmat b) {
+  assert(a.rows == b.rows);
+  assert(a.cols == b.cols);
+  Cmat res = Cmat(matrixAdd(a.mat, b.mat));
+  assert(res.rows == a.rows);
+  assert(res.cols == a.cols);
+  for (unsigned i=0; i<a.rows; i++) {
+    for (unsigned j=0; j<a.cols; j++) {
+      float x = res.really_at(i,j);
+      float y =   a.really_at(i,j);
+      float z =   b.really_at(i,j);
+      cout << i << " " << j << " " << x << " " << y << " " << z << "\n";
+    }
+  }
+  return res;
+}
+
 int main() {
   const unsigned A=17, B=11;
   Cmat a(A, B);
@@ -88,7 +105,10 @@ int main() {
   a.print();
   Cmat b = a.scale(9.99);
   b.print();
+  Cmat c = cadd(a, b);
+  c.print();
   a.del();
   b.del();
+  c.del();
   return 0;
 }

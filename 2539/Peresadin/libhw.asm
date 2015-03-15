@@ -103,7 +103,9 @@ matrixScale:
         movups xmm1, [rax + data + 4 * rcx - 4]
         mulss xmm1, xmm0
         movups [rax + data + 4 * rcx - 4], xmm1
-        loop .loop
+        sub rcx, 4
+        cmp rcx, 0
+        jne .loop
     pop rcx
     ret
 
@@ -125,7 +127,39 @@ matrixAdd:
         movups xmm0, [r8 + data + 4 * rcx - 4]
         addss xmm0, [r9 + data + 4 * rcx - 4]
         movups [rax + data + 4 * rcx - 4], xmm0
-        loop .loop
+        sub rcx, 4
+        cmp rcx, 0
+        jne .loop
+    ret
+    .error
+    mov rax, 0
+    ret
+
+matrixMul:
+    mov rax, [rdi + initCols]
+    cmp rax, [rsi + initRows]
+    jne .error
+    push r12
+    ;TODO trans
+    mov rcx, [rdi + initCols]
+    mov r11, [rdi + rows]
+    mov r12, [rsi + cols]
+    mov r8, 0
+    .loop1
+        mov r9, 0
+        .loop2
+            mov r10, 0
+            .loop3
+                inc r10
+                cmp r10, rcx
+                jne .loop3
+
+            inc r9
+            cmp r9, r12
+        inc r8
+        cmp r8, r11
+        jne .loop1
+    pop r12
     ret
     .error
     mov rax, 0

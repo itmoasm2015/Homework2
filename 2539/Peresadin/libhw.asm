@@ -38,7 +38,7 @@ matrixNew:
 
     mov rcx, rdi
     .set_zeroes
-        mov qword [rax + rcx - 1], 0
+        mov dword [rax + 4 * rcx - 4], 0
         loop .set_zeroes
     ret
 
@@ -73,19 +73,46 @@ matrixSet:
 
 matrixClone:
     push rbp
+    push rsi
+    push rcx
     mov rbp, rdi
     mov rdi, [rbp + initRows]
     mov rsi, [rbp + initCols]
-    call newMatrix
+    call matrixNew
     mov rdi, [rax + data]
     mov rsi, [rbp + data]
     mov rcx, [rax + rows]
     imul rcx, [rax + cols]
     .copy
-        mov rbp, [rsi + rcx - 1]
-        mov qword [rdi + rcx - 1], rbp
+        mov rbp, [rsi + 4 * rcx - 4]
+        mov qword [rdi + 4 * rcx - 4], rbp
         loop .copy
+    pop rcx
+    pop rsi
     pop rbp
     ret
 
+matrixScale:
+    push rcx
+    call matrixClone
+    mov rcx, [rdi + rows]
+    imul rcx, [rdi + cols]
+    unpcklps xmm0, xmm0
+    unpcklps xmm0, xmm0
+    .loop
+        movups xmm1, [rax + data + 4 * rcx - 4]
+        mulss xmm1, xmm0
+        movups [rax + data + 4 * rcx - 4], xmm1
+        loop .loop
+    pop rcx
+    ret
 
+matrixAdd:
+    call matrixClone
+    mov rcx, [rdi + rows]
+    imul rcx, [rdi + cols]
+    .loop
+        movups xmm0, [rsi + data + 4 * rcx - 4]
+        addss xmm0, [rax + data + 4 * rcx - 4]
+        movups [rax + data + 4 * rcx - 4], xmm0
+        loop .loop

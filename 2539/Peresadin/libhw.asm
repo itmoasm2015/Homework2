@@ -1,3 +1,4 @@
+
 section .text
 
 extern malloc
@@ -14,24 +15,31 @@ global matrixAdd
 global matrixMul
 global matrixTranspose
 
+;Структруа матрицы
 struc Matrix
     rows:     resq 1
-    cols:     resq 1
-    data:     resq 1
+    cols:     resq 1;rows, cols - выровненные размеры матрицы (rows = ceil(initRows/4), cols = ceil(initCols/4))
+    data:     resq 1;элементы матрицы
     initRows: resq 1
-    initCols: resq 1
+    initCols: resq 1;initRows, initCols - размеры матрицы
 endstruc
 
+;Создает новую матрицу
+;Принимает
+	;rdi - количество строк матрицы
+	;rsi - количество столбцов матрицы
+;Возвращает
+	;rax - указатель на новую матрицу
 matrixNew:
-    push rsi
+    push rsi;сохраняем регистры
     push rdi
     mov rdi, Matrix_size
-    call malloc
+    call malloc;создаем структуру матрицы
     pop rdi
     pop rsi
     mov rdx, rax ;rdx - указатель на результирующую структуру
     mov [rax + initRows], rdi
-    mov [rax + initCols], rsi
+    mov [rax + initCols], rsi;сохраняем размеры матрицы
     
     add rdi, 3
     add rsi, 3
@@ -39,41 +47,63 @@ matrixNew:
     shr rsi, 2
     shl rdi, 2
     shl rsi, 2
+    ;rdi = ((rdi + 3) / 4)*4, rsi = ((rsi + 3) / 4)*4 - выравниваем размеры
     mov [rax + rows], rdi
     mov [rax + cols], rsi
+    ;сохранем их
 
     imul rdi, rsi
     mov rcx, rdi
     shl rdi, 2
     push rdx
     push rcx
-    call malloc
+    call malloc;выделяем rdi*rsi - элементов матрицы
     pop rcx
     pop rdx
     mov [rdx + data], rax
 
-    .set_zeroes
+    .set_zeroes;заполняем матрицу нулями
         mov dword [rax + 4 * rcx - 4], 0
         loop .set_zeroes
-    mov rax, rdx
+    mov rax, rdx;возвращаем результат
     ret
 
+;Удаляет матрицу
+;Принимает
+	;rdi - указатель на матрицу
 matrixDelete:
     push rdi
     mov rdi, [rdi + data]
-    call free
+    call free;удаляем данные матрицы
     pop rdi
-    call free
+    call free;удаляем структуру матрицы
     ret
 
+;Возвращает количество строк в матрице
+;Принимает
+	;rdi - указатель на матрицу
+;Возращает
+	;rax - количество строк в матрице
 matrixGetRows:
     mov rax, [rdi + initRows]
     ret
 
+;Возвращает количество столбцов в матрице
+;Принимает
+	;rdi - указатель на матрицу
+;Возвращает
+	;rax - количество столбцов в матрице
 matrixGetCols:
     mov rax, [rdi + initCols]
     ret
 
+;Возвращает указатель на элемент структуры
+;Принимает
+	;rdi - указатель на матрицу
+	;rsi - номер строки
+	;rdx - номер столбца
+;Возвращает
+	;rax - указатель на rdi[rsi][rdx] - элемент матрицы
 loadAdress:
     imul rsi, [rdi + cols]
     add rsi, rdx

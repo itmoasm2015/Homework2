@@ -1,10 +1,11 @@
 ASM_FLAGS = -f elf64 -g dwarf2
-CFLAGS = -g -L. -I../../include
+#CFLAGS = -fsanitize=address -g -L. -I../../include
+CFLAGS = -O2 -L. -I../../include
 
 all: tests
 
 tests: libhw.a tests.o tmatrix.o
-	g++ -o tests $(CFLAGS) tests.o tmatrix.o -lhw -fsanitize=address
+	g++ -o tests $(CFLAGS) tests.o tmatrix.o -lhw
 
 tests.o: tests.cpp
 	g++ -o tests.o tests.cpp $(CFLAGS) -c 

@@ -6,7 +6,6 @@
 TMatrix::TMatrix(const Matrix& oth)  {
 	n = matrixGetRows(oth);
 	m = matrixGetCols(oth);
-	std::cerr << "dim " << n << " " << m << std::endl;
 	data = new float*[n];
 	for (int i = 0; i < n; ++i) { 
 		data[i] = new float[m];

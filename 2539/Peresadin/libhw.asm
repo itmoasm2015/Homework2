@@ -212,7 +212,7 @@ matrixMul:
     mov rbp, [rax + data]
     mov rcx, [rdi + cols]
     mov r11, [rdi + rows]
-    mov r12, [rsi + cols]
+    mov r12, [rsi + rows]
     mov rdi, [rdi + data]
     mov rsi, [rsi + data]
 

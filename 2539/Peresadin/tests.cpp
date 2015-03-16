@@ -3,8 +3,8 @@
 #include <cstdio>
 #include <cmath>
 #include <cstdlib>
-const int N = 2;
-const int M = 2;
+#include <ctime>
+#include <cassert>
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,14 +15,19 @@ Matrix matrixTranspose(Matrix a);
 #endif
 
 bool equals(const Matrix& a, const TMatrix& b) {
-	if (matrixGetRows(a) != b.rows() || matrixGetCols(a) != b.cols())
+	if (matrixGetRows(a) != b.rows() || matrixGetCols(a) != b.cols()) {
+		printf("diff dim\n");
 		return false;
+	}
 	int n = b.rows();
 	int m = b.cols();
 	for (int i = 0; i < n; ++i) 
 		for (int j = 0; j < m; ++j)
-            if (fabs(b.get(i, j) - matrixGet(a, i, j)) > 0.01)
+            if (fabs(b.get(i, j) - matrixGet(a, i, j)) > 0.01) {
+				printf("%.3f\n", b.get(i, j));
+				printf("%d %d %.2f\n", i, j, fabs(b.get(i, j) - matrixGet(a, i, j)));
                 return false;
+			}
     return true;
 }
 
@@ -30,79 +35,139 @@ Matrix randMatrxix(int n, int m) {
 	Matrix ret = matrixNew(n, m);
 	for (int i = 0; i < n; ++i)
 		for (int j = 0; j < m; ++j)
+			//matrixSet(ret, i, j, 1);
 			matrixSet(ret, i, j, float(rand() * 1.0 / RAND_MAX));
 	return ret;
+}
+
+float randFloat() {
+	int sign = 1;
+	if (rand()%2) sign = -1;
+	return sign * float(rand() * 1.0 / RAND_MAX);
+}
+
+int randInt(int l, int r) {
+	int x = rand() % (r - l);
+	if (x < 0) x = -x;
+	return x + l;
 }
 
 TMatrix randTMatrxix(int n, int m) {
 	TMatrix ret(n, m);
 	for (int i = 0; i < n; ++i)
 		for (int j = 0; j < m; ++j)
-			ret.set(i, j, float(rand() * 1.0 / RAND_MAX));
+			ret.set(i, j, randFloat());
 	return ret;
 }
 
-TMatrix toTMatrix(Matrix a) {
-	
+void stressConstructor(int tests) {
+	printf("===stress constructor===\n");
+	for (int test = 0; test < tests; ++test) {
+		int n = randInt(1000, 3000);
+		int m = randInt(1000, 3000);
+		Matrix a = matrixNew(n, m);
+		TMatrix b(n, m);
+		assert(equals(a, b));
+		printf("test = %d\n", test + 1);
+		matrixDelete(a);
+	}
+}
+
+
+void stressScale(int tests) {
+	printf("===stress scale===\n");
+	for (int test = 0; test < tests; ++test) {
+		int n = randInt(500, 5000);
+		int m = randInt(500, 5000);
+		float k = randFloat();
+		Matrix a = randMatrxix(n, m);
+		TMatrix v(a);
+		int l = clock();
+		Matrix my = matrixScale(a, k);
+		double tmy = (clock() - l) * 1.0 / CLOCKS_PER_SEC;
+		
+		l = clock();
+		TMatrix ok = v.scale(k);
+		double tok = (clock() - l) * 1.0 / CLOCKS_PER_SEC;
+		
+		assert(equals(my, ok));
+		printf("test = %d: diff time = %.3f\n", test + 1, tok - tmy);
+		matrixDelete(a);
+	}
+}
+
+void stressAdd(int tests) {
+	printf("===stress add===\n");
+	for (int test = 0; test < tests; ++test) {
+		int n = randInt(1000, 5000);
+		int m = randInt(1000, 5000);
+		Matrix a = randMatrxix(n, m);
+		Matrix b = randMatrxix(n, m);
+		int l = clock();
+		Matrix my = matrixAdd(a, b);
+		double tmy = (clock() - l) * 1.0 / CLOCKS_PER_SEC;
+		
+		l = clock();
+		TMatrix ok = TMatrix(a).add(b);
+		double tok = (clock() - l) * 1.0 / CLOCKS_PER_SEC;
+		
+		assert(equals(my, ok));
+		printf("test = %d: diff time = %.3f\n", test + 1, tok - tmy);
+		matrixDelete(a);
+		matrixDelete(b);
+	}
+}
+
+void stressMul(int tests) {
+	printf("===stress mul===\n");
+	for (int test = 0; test < tests; ++test) {
+		int n = randInt(500, 2000);
+		int k = randInt(500, 2000);
+		Matrix a = randMatrxix(n, k);
+		Matrix b = randMatrxix(matrixGetCols(a), randInt(500, 2000));
+		int l = clock();
+		Matrix res = matrixMul(a, b);
+		double tmy = (clock() - l) * 1.0 / CLOCKS_PER_SEC;
+		
+		l = clock();
+		TMatrix ok = TMatrix(a).mul(b);
+		double tok = (clock() - l) * 1.0 / CLOCKS_PER_SEC;
+		
+		assert(equals(res, ok));
+		printf("test = %d : mytime = %.3f oktime = %.3f\n", test + 1,  tmy, tok);
+		matrixDelete(b);
+		matrixDelete(a);
+		matrixDelete(res);
+	}
+}
+
+void stressTranspose(int tests) {
+	printf("===stress transpose===\n");
+	for (int test = 0; test < tests; ++test) {
+		int n = randInt(500, 2000);
+		int m = randInt(500, 2000);
+		Matrix a = randMatrxix(n, m);
+		int l = clock();
+		Matrix my = matrixTranspose(a);
+		double tmy = (clock() - l) * 1.0 / CLOCKS_PER_SEC;
+		
+		l = clock();
+		TMatrix ok = TMatrix(a).transpose();
+		double tok = (clock() - l) * 1.0 / CLOCKS_PER_SEC;
+		
+		assert(equals(my, ok));
+		printf("test = %d: diff time = %.3f\n", test + 1,  tok - tmy);
+		matrixDelete(a);
+		
+	}
 }
 
 int main() {
-    Matrix a = randMatrxix(2, 3);
-    Matrix b = randMatrxix(3, 5);
-	
-	/*printf("%d %d\n", matrixGetRows(a), matrixGetCols(a));
-    if (!equals(a, b)) {
-        printf("\n===diff after set===\n");
-        return 0;
-    }
-    
-    printf("scale testing...\n");
-    fflush(stdout);
-    b = b.scale(13.52);
-    a = matrixScale(a, 13.52);
-    if (!equals(a, b)) {
-        printf("\n===diff after scale===\n");
-        return 0;
-    }
-    
-    printf("add testing...\n");
-    fflush(stdout);
-    a = matrixAdd(a, c);
-    b = b.add(d);
-    
-        if (!equals(a, b)) {
-        printf("\n===diff after add===\n");
-        return 0;
-    }*/
-    
-    /*printf("transpose testing...\n");
-    fflush(stdout);
-    TMatrix ans = TMatrix(b).transpose();
-	a = matrixTranspose(b);
-	printf("%d %d\n", ans.rows(), ans.cols());
-	for (int i = 0; i < ans.rows(); ++i)
-		for (int j = 0; j < ans.cols(); ++j)
-			printf("(%.2f %.2f) ", matrixGet(a, i, j), ans.get(i, j));
-			
-    if (!equals(a, ans)) {
-        printf("\n===diff after transpose===\n");
-        return 0;
-    }*/
-    
-	printf("mul testing...\n");
-    fflush(stdout);
-    TMatrix ans =  TMatrix(a).mul(b);
-    a = matrixMul(a, b);
-    if (!equals(a, ans)) {
-        printf("\n===diff after mul===\n");
-        return 0;
-    }
-    
-    
-    /*printf("deleting testing...\n");
-    fflush(stdout);
-	matrixDelete(a);
-	matrixDelete(c);*/
+	stressConstructor(10);
+	stressScale(10);
+	stressAdd(10);
+	stressTranspose(10);
+	stressMul(10);
 	return 0;
 }
 

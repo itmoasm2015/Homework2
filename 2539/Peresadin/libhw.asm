@@ -135,30 +135,98 @@ matrixAdd:
     mov rax, 0
     ret
 
+matrixTranspose:
+    push rbp
+    push rdi
+    push rsi
+    mov rbp, rdi
+    mov rsi, [rbp + initRows]
+    mov rdi, [rbp + initCols]
+    call matrixNew
+    mov rbp, [rbp + data]
+    xor r8, r8
+    .loop1
+        xor r9, r9
+        .loop2
+            mov r10, r9
+            imul r10, rdi
+            add r10, r8
+            shl r10, 2
+            mov r11, [rbp]
+            mov [rax + data + r10], r11
+            inc rbp
+            inc r9
+            cmp r9, rdi
+            jne .loop2
+        inc r8
+        cmp r8, rsi
+        jne .loop1
+    push rsi
+    push rdi
+    push rbp
+    ret
+
 matrixMul:
     mov rax, [rdi + initCols]
     cmp rax, [rsi + initRows]
     jne .error
     push r12
-    ;TODO trans
-    mov rcx, [rdi + initCols]
+    push rbp
+    push r13
+
+    mov r11, rdi
+    mov r12, rsi
+    mov rdi, [r11 + initRows]
+    mov rsi, [r12 + initCols]
+    call matrixNew
+    mov rdi, r11
+    mov rsi, r12
+
+    xchg rsi, rdi
+    call matrixTranspose
+    xchg rsi, rdi
+    xchg rax, rsi
+
+    mov rbp, [rax + data]
+    mov rcx, [rdi + cols]
     mov r11, [rdi + rows]
     mov r12, [rsi + cols]
-    mov r8, 0
+    xor r8, r8
     .loop1
-        mov r9, 0
+        xor r9, r9
         .loop2
-            mov r10, 0
+            xor r10, r10
+            xorps xmm0, xmm0
             .loop3
-                inc r10
+                mov r13, r8
+                imul r13, rcx
+                add r13, r10
+                shl r13, 2
+                movups xmm1, [rdi + data + r13]
+
+                mov r13, r9
+                imul r13, rcx
+                add r13, r10
+                shl r13, 2
+                mulps xmm1, [rsi + data + r13]
+
+                addps xmm0, xmm1
+                add r10, 4
                 cmp r10, rcx
                 jne .loop3
-
+            movups [rbp], xmm0
+            add rbp, 4
             inc r9
             cmp r9, r12
+            jne .loop2
         inc r8
         cmp r8, r11
         jne .loop1
+    mov rdi, rsi
+    call matrixDelete
+
+    pop r13
+    pop rbp
     pop r12
     ret
     .error

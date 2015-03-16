@@ -16,11 +16,15 @@ bool equals(const Matrix& a, const TMatrix& b) {
 int main() {
     TMatrix b(N, M);
     Matrix a = matrixNew(N, M);
+    Matrix c = matrixNew(N, M);
+    TMatrix d(N, M);
     printf("%d %d\n", matrixGetRows(a), matrixGetCols(a));
     for (int i = 0; i < N; ++i)
         for (int j = 0; j < N; ++j) {
             matrixSet(a, i, j, (float)(i+j));
+            matrixSet(c, i, j, (float)(i*j));
             b.set(i, j, (float)(i+j));
+            d.set(i, j, (float)(i*j));
 		}
 	
 	printf("%d %d\n", matrixGetRows(a), matrixGetCols(a));
@@ -31,14 +35,19 @@ int main() {
     
     b = b.scale(13.52);
     a = matrixScale(a, 13.52);
-    for (int i = 0; i < N; ++i)
-		for (int j = 0; j < M; ++j)
-			printf("(%.2f %.2f) ", b.get(i, j), matrixGet(a, i, j));
 			
-    /*if (!equals(a, b)) {
+    if (!equals(a, b)) {
         printf("\n===diff after scale===\n");
         return 0;
-    }*/
+    }
+    
+    a = matrixAdd(a, c);
+    b = b.add(d);
+    
+        if (!equals(a, b)) {
+        printf("\n===diff after add===\n");
+        return 0;
+    }
 	return 0;
 }
 

@@ -114,9 +114,10 @@ matrixScale:
     ret
 
 matrixAdd:
+    push rdi
+    push rsi
     mov r8, rdi
     mov r9, rsi
-
     mov rdi, [r8 + initRows]
     cmp rdi, [r9 + initRows]
     jne .error
@@ -125,18 +126,20 @@ matrixAdd:
     jne .error
 
     call matrixNew
+    pop rsi
+    pop rdi
     mov rcx, [rdi + rows]
     imul rcx, [rdi + cols]
-    mov r8, [r8 + data]
-    mov r9, [r9 + data]
+    sub rcx, 4
+    mov rdi, [rdi + data]
+    mov rsi, [rsi + data]
     mov r10, [rax + data]
     .loop
-        movups xmm0, [r8 + 4 * rcx - 4]
-        addss xmm0, [r9 + 4 * rcx - 4]
-        movups [r10 + 4 * rcx - 4], xmm0
+        movups xmm0, [rdi + 4 * rcx]
+        addps xmm0, [rsi + 4 * rcx]
+        movups [r10 + 4 * rcx], xmm0
         sub rcx, 4
-        cmp rcx, 0
-        jne .loop
+        jns .loop
     ret
     .error
     mov rax, 0

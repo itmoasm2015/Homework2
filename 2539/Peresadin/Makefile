@@ -24,3 +24,4 @@ clean:
 	rm -f libhw.o
 	rm -f tests.o
 	rm -f tmatrix.o
+	rm tests

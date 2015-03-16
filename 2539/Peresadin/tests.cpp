@@ -48,6 +48,13 @@ int main() {
         printf("\n===diff after add===\n");
         return 0;
     }
+    
+	a = matrixMul(a, c);
+    b = b.mul(d);
+    if (!equals(a, b)) {
+        printf("\n===diff after mul===\n");
+        return 0;
+    }
 	return 0;
 }
 

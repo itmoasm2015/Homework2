@@ -164,7 +164,8 @@ matrixTranspose:
             add r10, r8
             shl r10, 2
             mov r11, [rbp]
-            mov [rax + data + r10], r11
+            add r10, [rax + data]
+            mov [r10], r11
             inc rbp
             inc r9
             cmp r9, rdi
@@ -205,6 +206,8 @@ matrixMul:
     mov rcx, [r11 + cols]
     mov r11, [r11 + rows]
     mov r12, [r12 + cols]
+    mov rdi, [rdi + data]
+    mov rsi, [rsi + data]
     xor r8, r8
     .loop1
         xor r9, r9
@@ -216,15 +219,18 @@ matrixMul:
                 imul r13, rcx
                 add r13, r10
                 shl r13, 2
-                movups xmm1, [rdi + data + r13]
+                movups xmm1, [rdi + r13]
 
                 mov r13, r9
                 imul r13, rcx
                 add r13, r10
                 shl r13, 2
-                mulps xmm1, [rsi + data + r13]
+                mulps xmm1, [rsi + r13]
 
+                haddps xmm1, xmm1
+                haddps xmm1, xmm1
                 addps xmm0, xmm1
+
                 add r10, 4
                 cmp r10, rcx
                 jne .loop3

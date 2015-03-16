@@ -12,6 +12,7 @@ global matrixSet
 global matrixScale
 global matrixAdd
 global matrixMul
+global matrixTranspose
 
 struc Matrix
     rows:     resq 1
@@ -149,11 +150,14 @@ matrixTranspose:
     push rbp
     push rdi
     push rsi
-    push r11
+
     mov rbp, rdi
     mov rsi, [rbp + initRows]
     mov rdi, [rbp + initCols]
     call matrixNew
+    mov rsi, [rbp + rows]
+    mov rdi, [rbp + cols]
+
     mov rbp, [rbp + data]
     xor r8, r8
     .loop1
@@ -163,20 +167,19 @@ matrixTranspose:
             imul r10, rdi
             add r10, r8
             shl r10, 2
-            mov r11, [rbp]
+            movss xmm0, [rbp]
             add r10, [rax + data]
-            mov [r10], r11
-            inc rbp
+            movss [r10], xmm0
+            add rbp, 4
             inc r9
             cmp r9, rdi
             jne .loop2
         inc r8
         cmp r8, rsi
         jne .loop1
-    pop r11
-    push rsi
-    push rdi
-    push rbp
+    pop rsi
+    pop rdi
+    pop rbp
     ret
 
 matrixMul:

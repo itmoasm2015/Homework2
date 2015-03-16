@@ -15,7 +15,7 @@ global matrixAdd
 global matrixMul
 global matrixTranspose
 
-;Структруа матрицы
+;Структура матрицы
 struc Matrix
     rows:     resq 1
     cols:     resq 1;rows, cols - выровненные размеры матрицы (rows = ceil(initRows/4), cols = ceil(initCols/4))
@@ -103,108 +103,142 @@ matrixGetCols:
 	;rsi - номер строки
 	;rdx - номер столбца
 ;Возвращает
-	;rax - указатель на rdi[rsi][rdx] - элемент матрицы
+	;rax - указатель на rdi[rsi][rdx] элемент матрицы
 loadAdress:
     imul rsi, [rdi + cols]
     add rsi, rdx
-    shl rsi, 2
-    mov rax, [rdi + data]
-    add rax, rsi
+    shl rsi, 2;rsi - номер ячейки [rsi][rdx] умноженный на 4 (размер float)
+    mov rax, [rdi + data];узнаем указатель на данные
+    add rax, rsi;складываем указатель на начало данных с номером элемента
     ret
+    
+;Возвращает элемент матрицы на i, j позиции
+;Принимает
+	;rdi - указатель на матрицу
+	;rsi - номер строки
+	;rdx - номер столбца
+;Возвращает значение элемента матрицы rdi[rsi][rdx]
 
 matrixGet:
-    call loadAdress
+    call loadAdress;получаем указатель на элемент
     movss xmm0, [rax]
     ret
 
+;Присваивает элементу матрицы на i, j позиции значение
+;Принимает
+	;rdi - указатель на матрицу
+	;rsi - номер строки
+	;rdx - номер столбца
+	;xmm0 - новое значение элемента
 matrixSet:
-    call loadAdress
+    call loadAdress;получаем указатель на элемент
     movss [rax], xmm0
     ret
-
+    
+;Умножает каждый элемент матрицы на k и результат помещает в новую матрицу
+;Принимает
+	;rdi - указатель на матрицу
+	;xmm0 - значение, на которое нужно умножить
+;Возвращает
+	;rax - указатель на новую матрицу, умноженную на xmm0
 matrixScale:
     push rbp
     mov rbp, rdi
     mov rdi, [rbp + initRows]
     mov rsi, [rbp + initCols]
-    call matrixNew
+    call matrixNew;создаем новую матрицу в rax
     mov rcx, [rbp + rows]
-    imul rcx, [rbp + cols]
+    imul rcx, [rbp + cols];считаем кол-во элементов в матрице
     sub rcx, 4
     unpcklps xmm0, xmm0
-    unpcklps xmm0, xmm0
-    mov rbp, [rbp + data]
-    mov r8, [rax + data]
-    .loop
-        movups xmm1, [rbp + 4 * rcx]
-        mulps xmm1, xmm0
-        movups [r8 + 4 * rcx], xmm1
+    unpcklps xmm0, xmm0;xmm0 = k:k:k:k
+    mov rbp, [rbp + data];получаем указатель на данные старой матрицы
+    mov r8, [rax + data];получаем указатель на данные новой матрицы
+    .loop;идем с конца по матрице
+        movups xmm1, [rbp + 4 * rcx];загружаем в регистр xmm1 4 очередных числа
+        mulps xmm1, xmm0;умножаем каждое из них на k векторной операцией
+        movups [r8 + 4 * rcx], xmm1;загружаем результат в новую матрицу
         sub rcx, 4
-        jns .loop
+        jns .loop;rdi - указатель на данные первой матрицы
     pop rbp
     ret
-
+    
+;Cкладывает две матрицы и результат помещает в новую матрицу
+;Принимает
+	;rdi - указатель на первую матрицу
+	;rsi - указатель на вторую матрицу
+;Возвращает
+	;rax - указатель на новую матрицу, которая равна сумме матриц
 matrixAdd:
     push rdi
     push rsi
     mov r8, rdi
     mov r9, rsi
+    ;проверяем, что размеры матриц равны
     mov rdi, [r8 + initRows]
     cmp rdi, [r9 + initRows]
     jne .error
     mov rsi, [r8 + initCols]
     cmp rsi, [r9 + initCols]
     jne .error
-
-    call matrixNew
+    ;rdi - кол-во строк в новой матрице, rsi - кол-во столбцов в новой матрице
+    call matrixNew;создаем новую матрицу такого же размера, как исходные в rax
     pop rsi
     pop rdi
+    ;rsi, rdi - указатели на матрицы
     mov rcx, [rdi + rows]
-    imul rcx, [rdi + cols]
+    imul rcx, [rdi + cols];считаем количество элементов в матрице
     sub rcx, 4
-    mov rdi, [rdi + data]
-    mov rsi, [rsi + data]
-    mov r10, [rax + data]
-    .loop
-        movups xmm0, [rdi + 4 * rcx]
-        addps xmm0, [rsi + 4 * rcx]
-        movups [r10 + 4 * rcx], xmm0
+    mov rdi, [rdi + data];rdi - указатель на данные первой матрицы
+    mov rsi, [rsi + data];rsi - указатель на данные второй матрицы
+    mov r10, [rax + data];rax - указатель на данные матрицы-результата
+    .loop;бежим с конца по матрицам
+        movups xmm0, [rdi + 4 * rcx];загружаем в xmm0 4 очередных числа из первой матрицы
+        addps xmm0, [rsi + 4 * rcx];векторно прибавляем к ним 4 числа из второй
+        movups [r10 + 4 * rcx], xmm0;сохраняем результат
         sub rcx, 4
-        jns .loop
+        jns .loop;если rcx >= 0 - продолжаем
     ret
-    .error
-    mov rax, 0
+    .error;если размеры матрицы не совпадают - возвращаем 0
+    xor rax, rax
     ret
 
+;Создает новую матрицу, которая равна транспонированной исходной
+;Принимает
+	;rdi - указатель на матрицу
+;Возвращает
+	;rax - указатель на новую транспонированную матрицу
 matrixTranspose:
     push rbp
     push rdi
     push rsi
 
-    mov rbp, rdi
+    mov rbp, rdi;rbp - указатель на исходную матрицу
     mov rsi, [rbp + initRows]
     mov rdi, [rbp + initCols]
-    call matrixNew
+    call matrixNew;создаем новую матрицу размером (m, n) в rax
     mov rsi, [rbp + rows]
     mov rdi, [rbp + cols]
-
-    mov rbp, [rbp + data]
+    ;rsi, rdi - кол-во строк и столбцов в матрице
+    
+    mov rbp, [rbp + data];получаем указатель на данные матрицы
     xor r8, r8
     .loop1
         xor r9, r9
         .loop2
+			;рассматриваем (r8, r9) - элемент исходной матрицы матрицы и записываем его в (r9, r8) элемент новой матрицы
             mov r10, r9
             imul r10, rsi
-            add r10, r8
+            add r10, r8;r10 = r9*m+r8
             shl r10, 2
-            movss xmm0, [rbp]
+            movss xmm0, [rbp];rbp - указатель на текущий элемент матрицы (r8 * m + n ~ rbp)
             add r10, [rax + data]
-            movss [r10], xmm0
-            add rbp, 4
-            inc r9
+            movss [r10], xmm0;сохраняем в новую матрицу значение
+            add rbp, 4;сдвигаем указатель на текущий элемент матрицы
+            inc r9;увеличививаем номер столбца
             cmp r9, rdi
-            jne .loop2
-        inc r8
+            jne .loop2;если рассмотрели все столбцы - останавливаемся
+        inc r8;увеличиваем номер строки
         cmp r8, rsi
         jne .loop1
     pop rsi
@@ -212,10 +246,16 @@ matrixTranspose:
     pop rbp
     ret
 
+;Умножает две матрицы и результат помещает в новую матрицу
+;Принимает
+	;rdi - указатель на первую матрицу
+	;rsi - указатель на вторую матрицу
+;Возвращает
+	;rax - указатель на новую матрицу, которая равна произведению матриц
 matrixMul:
     mov rax, [rdi + initCols]
     cmp rax, [rsi + initRows]
-    jne .error
+    jne .error;проверяем, что матрицы имею соместные размеры (n, m) и (m, k)
 
     push rbp
     push r12
@@ -223,21 +263,25 @@ matrixMul:
     push r14
     push r15
 
-    mov r13, rdi
-    mov r12, rsi
+    mov r13, rdi;r13 - указатель на первую матрицу
+    mov r12, rsi;r12 - указатель на вторую матрицу
     mov rdi, [r13 + initRows]
     mov rsi, [r12 + initCols]
-    call matrixNew
+    call matrixNew;создаем матрицу размера (n, k)
     mov rdi, r13
     mov rsi, r12
-
+    ;rdi, rsi - указатель на первую матрицу и вторую матрицу, соответственно
+    
     push rax
     xchg rsi, rdi
-    call matrixTranspose
+    call matrixTranspose;транспонируме вторую матрицу, чтобы умножать быстрее
     xchg rsi, rdi
     mov rsi, rax
     mov rdx, rsi
     pop rax
+    ;rdi - первая матрица
+	;rsi - вторая транспонированная матрица
+	;rax - матрица-результат
 
     mov rbp, [rax + data]
     mov rcx, [rdi + cols]
@@ -245,36 +289,44 @@ matrixMul:
     mov r12, [rsi + rows]
     mov rdi, [rdi + data]
     mov rsi, [rsi + data]
-
+    ;rdi, rsi, rbp - указатель на данные первой матрицы, второй матрицы и данные результата, соотвественно
+    ;rcx - кол-во столбцов в первой матрице
+    ;r11 - кол-во строк в результате
+    ;r12 - кол-во столбцов в результате
     xor r8, r8
     .loop1
         xor r9, r9
         mov r15, rsi
+        ;r8, r9  ячейка результирующей матрицы, значение которой мы считаем
+        ;r14, r15 - указетли на элемент первой и второй матрицы, значение которых нужно перемножить и прибавить к ячейке (r8, r9)
+        ;r14 ~ (r8, r10) первой матрицы
+        ;r15 ~ (r9, r10) второй транспонированной матрицы
         .loop2
             lea r14, [r8 * 4]
             imul r14, rcx
             add r14, rdi
-
+            ;проинициализировали r14
             xor r10, r10
-            xorps xmm0, xmm0
-            .loop3
+            xorps xmm0, xmm0;в xmm0 накапливаем сумму, в результате значение xmm0 будет равно значению (r8, r9) ячейки
+            .loop3;считаем значение (r8, r9) ячейки матрицы-результата
                 movups xmm1, [r14]
                 mulps xmm1, [r15]
-
+                ;загружаем соотвествующие значения и перемножаем их векторной операцией
                 haddps xmm1, xmm1
                 haddps xmm1, xmm1
+                ;складываем горизонтально 4 произведения
                 addss xmm0, xmm1
                 add r14, 4*4
-                add r15, 4*4
-                add r10, 4
+                add r15, 4*4;сдвигаем указатели r14, r15 на следующие элементы
+                add r10, 4;
                 cmp r10, rcx
-                jne .loop3
-            movss [rbp], xmm0
-            add rbp, 4
-            inc r9
+                jne .loop3;продолжаем, если просмотрели не все столбцы
+            movss [rbp], xmm0;сохраняем результат ячейку (r8, r9)
+            add rbp, 4;сдвигаем указатель на ячейку матрицы-результата
+            inc r9;увеличиваем номер столбца
             cmp r9, r12
             jne .loop2
-        inc r8
+        inc r8;увеличиваем номер строки
         cmp r8, r11
         jne .loop1
 
@@ -286,10 +338,10 @@ matrixMul:
 
     push rax
     mov rdi, rdx
-    call matrixDelete
+    call matrixDelete;удаляем транспонированную матрицу
     pop rax
 
     ret
-    .error
+    .error;если размеры не совместимы - возращаем 0
     xor rax, rax
     ret

@@ -194,7 +194,8 @@ matrixScale:
                     mulps xmm1, xmm0                ; qword [rdx] *= xmm0
                     movups [rdx], xmm1
                     lea rdx, [rdx + 16]
-                    loop .scale_loop
+                    dec rcx
+                    jnz .scale_loop
                     ret
 
 ; Matrix matrixAdd(Matrix a, Matrix b);
@@ -231,7 +232,8 @@ matrixAdd:          mov r8, [rdi + rows]
                     movups [rdx], xmm0
                     lea rdx, [rdx + 16]
                     lea r8, [r8 + 16]
-                    loop .add_loop
+                    dec rcx
+                    jnz .add_loop
                     ret
 .failure:           xor rax, rax
                     ret
@@ -335,22 +337,19 @@ matrixMul:          mov r8, [rdi + cols]
 .mul_loop_1:        mov rsi, rdx
                     mov r9, rbp
 .mul_loop_2:        mov r10, rbx
-                    shr r10, 4
                     xorps xmm0, xmm0
-.mul_loop_3:        movups xmm1, [rdi]              ; calculate dot product
-                    movups xmm2, [rsi]
+.mul_loop_3:        movups xmm1, [rdi + r10 - 16]   ; calculate dot product
+                    movups xmm2, [rsi + r10 - 16]
                     dpps xmm1, xmm2, 0xF1
                     addss xmm0, xmm1
-                    lea rdi, [rdi + 16]
-                    lea rsi, [rsi + 16]
-                    dec r10
+                    sub r10, 16
                     jnz .mul_loop_3
-                    sub rdi, rbx
+                    add rsi, rbx
                     movss [rcx], xmm0
-                    lea rcx, [rcx + 4]
+                    add rcx, 4
                     dec r9
                     jnz .mul_loop_2
-                    lea rdi, [rdi + rbx]
+                    add rdi, rbx
                     dec r8
                     jnz .mul_loop_1
                     pop rdi

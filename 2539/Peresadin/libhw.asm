@@ -164,7 +164,7 @@ matrixTranspose:
         xor r9, r9
         .loop2
             mov r10, r9
-            imul r10, rdi
+            imul r10, rsi
             add r10, r8
             shl r10, 2
             movss xmm0, [rbp]
@@ -186,9 +186,12 @@ matrixMul:
     mov rax, [rdi + initCols]
     cmp rax, [rsi + initRows]
     jne .error
-    push r12
+
     push rbp
+    push r12
     push r13
+    push r14
+    push r15
 
     mov r13, rdi
     mov r12, rsi
@@ -212,33 +215,31 @@ matrixMul:
     mov r12, [rsi + cols]
     mov rdi, [rdi + data]
     mov rsi, [rsi + data]
+
     xor r8, r8
     .loop1
         xor r9, r9
+        mov r15, rsi
         .loop2
+            lea r14, [r8 * 4]
+            imul r14, rcx
+            add r14, rdi
+
             xor r10, r10
             xorps xmm0, xmm0
             .loop3
-                mov r13, r8
-                imul r13, rcx
-                add r13, r10
-                shl r13, 2
-                movups xmm1, [rdi + r13]
-
-                mov r13, r9
-                imul r13, rcx
-                add r13, r10
-                shl r13, 2
-                mulps xmm1, [rsi + r13]
+                movups xmm1, [r14]
+                mulps xmm1, [r15]
 
                 haddps xmm1, xmm1
                 haddps xmm1, xmm1
-                addps xmm0, xmm1
-
+                addss xmm0, xmm1
+                add r14, 4*4
+                add r15, 4*4
                 add r10, 4
                 cmp r10, rcx
                 jne .loop3
-            movups [rbp], xmm0
+            movss [rbp], xmm0
             add rbp, 4
             inc r9
             cmp r9, r12
@@ -246,9 +247,13 @@ matrixMul:
         inc r8
         cmp r8, r11
         jne .loop1
+
+    pop r15
+    pop r14
     pop r13
-    pop rbp
     pop r12
+    pop rbp
+
     push rax
     mov rdi, rdx
     call matrixDelete
@@ -256,5 +261,5 @@ matrixMul:
 
     ret
     .error
-    mov rax, 0
+    xor rax, rax
     ret

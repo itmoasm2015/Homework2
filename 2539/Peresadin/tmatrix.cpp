@@ -3,6 +3,18 @@
 #include <cassert>
 #include "tmatrix.h"
 
+TMatrix::TMatrix(const Matrix& oth)  {
+	n = matrixGetRows(oth);
+	m = matrixGetCols(oth);
+	std::cerr << "dim " << n << " " << m << std::endl;
+	data = new float*[n];
+	for (int i = 0; i < n; ++i) { 
+		data[i] = new float[m];
+		for (int j = 0; j < m; ++j)
+			data[i][j] = matrixGet(oth, i, j);
+		}
+}
+
 TMatrix::TMatrix(unsigned int n, unsigned int m): n(n), m(m) {
 	data = new float*[n];
 	for (int i = 0; i < n; ++i) { 
@@ -66,7 +78,7 @@ TMatrix TMatrix::add(const TMatrix& oth) const {
 }
 
 TMatrix TMatrix::transpose() const {
-	TMatrix ret(m, m);
+	TMatrix ret(m, n);
 	for (int i = 0; i < n; ++i)
 		for (int j = 0; j < m; ++j)
 			ret.data[j][i] = data[i][j];

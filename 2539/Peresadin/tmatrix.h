@@ -1,5 +1,6 @@
 #ifndef TMATRIX_H
 #define TMATRIX_H
+#include "matrix.h"
 
 struct TMatrix {
 private:
@@ -7,6 +8,7 @@ private:
     unsigned int n;
     unsigned int m;
 public:
+	TMatrix(const Matrix& oth);
     TMatrix(unsigned int n, unsigned int m);
     void swap(TMatrix& oth);
     TMatrix& operator = (const TMatrix& oth);

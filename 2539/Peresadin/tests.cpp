@@ -2,6 +2,7 @@
 #include "matrix.h"
 #include <cstdio>
 #include <cmath>
+#include <cstdlib>
 const int N = 2;
 const int M = 2;
 
@@ -25,21 +26,31 @@ bool equals(const Matrix& a, const TMatrix& b) {
     return true;
 }
 
-int main() {
-    TMatrix b(N, M);
-    Matrix a = matrixNew(N, M);
-    Matrix c = matrixNew(N, M);
-    TMatrix d(N, M);
-    printf("%d %d\n", matrixGetRows(a), matrixGetCols(a));
-    for (int i = 0; i < N; ++i)
-        for (int j = 0; j < N; ++j) {
-            matrixSet(a, i, j, (float)(i+j));
-            matrixSet(c, i, j, (float)(i*j));
-            b.set(i, j, (float)(i+j));
-            d.set(i, j, (float)(i*j));
-		}
+Matrix randMatrxix(int n, int m) {
+	Matrix ret = matrixNew(n, m);
+	for (int i = 0; i < n; ++i)
+		for (int j = 0; j < m; ++j)
+			matrixSet(ret, i, j, float(rand() * 1.0 / RAND_MAX));
+	return ret;
+}
+
+TMatrix randTMatrxix(int n, int m) {
+	TMatrix ret(n, m);
+	for (int i = 0; i < n; ++i)
+		for (int j = 0; j < m; ++j)
+			ret.set(i, j, float(rand() * 1.0 / RAND_MAX));
+	return ret;
+}
+
+TMatrix toTMatrix(Matrix a) {
 	
-	printf("%d %d\n", matrixGetRows(a), matrixGetCols(a));
+}
+
+int main() {
+    Matrix a = randMatrxix(2, 3);
+    Matrix b = randMatrxix(3, 5);
+	
+	/*printf("%d %d\n", matrixGetRows(a), matrixGetCols(a));
     if (!equals(a, b)) {
         printf("\n===diff after set===\n");
         return 0;
@@ -62,31 +73,36 @@ int main() {
         if (!equals(a, b)) {
         printf("\n===diff after add===\n");
         return 0;
-    }
+    }*/
     
-    printf("transpose testing...\n");
+    /*printf("transpose testing...\n");
     fflush(stdout);
-	a = matrixTranspose(a);
-    b = b.transpose();
-    if (!equals(a, b)) {
+    TMatrix ans = TMatrix(b).transpose();
+	a = matrixTranspose(b);
+	printf("%d %d\n", ans.rows(), ans.cols());
+	for (int i = 0; i < ans.rows(); ++i)
+		for (int j = 0; j < ans.cols(); ++j)
+			printf("(%.2f %.2f) ", matrixGet(a, i, j), ans.get(i, j));
+			
+    if (!equals(a, ans)) {
         printf("\n===diff after transpose===\n");
         return 0;
-    }
+    }*/
     
-    printf("mul testing...\n");
+	printf("mul testing...\n");
     fflush(stdout);
-	matrixMul(a, c);
-    b = b.mul(d);
-    if (!equals(a, b)) {
+    TMatrix ans =  TMatrix(a).mul(b);
+    a = matrixMul(a, b);
+    if (!equals(a, ans)) {
         printf("\n===diff after mul===\n");
         return 0;
     }
     
     
-    printf("deleting testing...\n");
+    /*printf("deleting testing...\n");
     fflush(stdout);
 	matrixDelete(a);
-	matrixDelete(c);
+	matrixDelete(c);*/
 	return 0;
 }
 

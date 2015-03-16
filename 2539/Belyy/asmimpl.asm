@@ -336,14 +336,15 @@ matrixMul:          mov r8, [rdi + cols]
                     mov rbp, r9
 .mul_loop_1:        mov rsi, rdx
                     mov r9, rbp
-.mul_loop_2:        mov r10, rbx
+.mul_loop_2:        xor r10, r10
                     xorps xmm0, xmm0
-.mul_loop_3:        movups xmm1, [rdi + r10 - 16]   ; calculate dot product
-                    movups xmm2, [rsi + r10 - 16]
+.mul_loop_3:        movups xmm1, [rdi + r10]        ; calculate dot product
+                    movups xmm2, [rsi + r10]
                     dpps xmm1, xmm2, 0xF1
                     addss xmm0, xmm1
-                    sub r10, 16
-                    jnz .mul_loop_3
+                    add r10, 16
+                    cmp r10, rbx
+                    jne .mul_loop_3
                     add rsi, rbx
                     movss [rcx], xmm0
                     add rcx, 4

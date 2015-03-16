@@ -148,21 +148,25 @@ matrixClone:
 	ret
 
 ; void matrixDelete(Matrix)
+; Frees memory used to store given matrix
 matrixDelete:
 	call free ; pointers that are allocated by aligned_alloc can be freed by free immediately
 	ret
 
 ; uint64_t matrixGetRows(Matrix)
+; Returns the number of rows in a matrix
 matrixGetRows:
 	mov rax, [rdi] ; this doesn't even have enter/leave, just as the functions before and after it, because it's not worth it
 	ret
 
 ; uint64_t matrixGetCols(Matrix)
+; Returns the number of columns in a matrix
 matrixGetCols:
 	mov rax, [rdi + 8]
 	ret
 
 ; float matrixGet(Matrix, uint64_t row, uint64_t col)
+; Returns a value contained at specified index in matrix. If the index is out of bounds, causes undefined behaviour.
 matrixGet:
 	enter 0, 0
 	mov rax, [rdi + 8]
@@ -181,6 +185,7 @@ matrixGet:
 	ret
 
 ; void matrixSet(Matrix, uint64_t row, uint64_t col, float data)
+; Sets a matrix cell to given value. If the index is out of bounds, causes undefined behaviour.
 matrixSet:
 	enter 0, 0
 	mov rax, [rdi + 8]
@@ -216,6 +221,9 @@ matrixAdd:
 	
 	call matrixClone ; copy the first matrix
 	
+	test rax, rax
+	jz .return
+	
 	push rax
 	mov rdi, [rax]
 	mov rsi, [rax + 8]
@@ -240,6 +248,7 @@ matrixAdd:
 	ret
 
 ; Matrix matrixScale(Matrix, float)
+; Multiplies all cells in matrix by given number. Returns null if it can't allocate storage for the result.
 matrixScale:
 	enter 0, 0
 	
@@ -249,6 +258,9 @@ matrixScale:
 	movss [rsp], xmm0 ; store argument, because it might not be saved across calls to Clone/SizeCalc
 	
 	call matrixClone
+	
+	test rax, rax
+	jz .return
 	
 	push rax
 	
@@ -275,6 +287,7 @@ matrixScale:
 	ret
 
 ; Matrix matrixMul(Matrix, Matrix)
+; Multiplies two matrices. Returns null if matrices can't be multiplied or if out of memory.
 matrixMul:
 	enter 0, 0
 	push r12

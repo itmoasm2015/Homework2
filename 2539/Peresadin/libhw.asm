@@ -99,15 +99,17 @@ matrixScale:
     call matrixNew
     mov rcx, [rbp + rows]
     imul rcx, [rbp + cols]
+    sub rcx, 4
     unpcklps xmm0, xmm0
     unpcklps xmm0, xmm0
+    mov rbp, [rbp + data]
+    mov r8, [rax + data]
     .loop
-        movups xmm1, [rbp + data + 4 * rcx - 4]
+        movups xmm1, [rbp + 4 * rcx]
         mulps xmm1, xmm0
-        movups [rax + data + 4 * rcx - 4], xmm1
+        movups [r8 + 4 * rcx], xmm1
         sub rcx, 4
-        cmp rcx, 0
-        jne .loop
+        jns .loop
     pop rbp
     ret
 
@@ -125,10 +127,13 @@ matrixAdd:
     call matrixNew
     mov rcx, [rdi + rows]
     imul rcx, [rdi + cols]
+    mov r8, [r8 + data]
+    mov r9, [r9 + data]
+    mov r10, [rax + data]
     .loop
-        movups xmm0, [r8 + data + 4 * rcx - 4]
-        addss xmm0, [r9 + data + 4 * rcx - 4]
-        movups [rax + data + 4 * rcx - 4], xmm0
+        movups xmm0, [r8 + 4 * rcx - 4]
+        addss xmm0, [r9 + 4 * rcx - 4]
+        movups [r10 + 4 * rcx - 4], xmm0
         sub rcx, 4
         cmp rcx, 0
         jne .loop

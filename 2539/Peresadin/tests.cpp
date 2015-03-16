@@ -22,20 +22,21 @@ int main() {
             matrixSet(a, i, j, (float)(i+j));
             b.set(i, j, (float)(i+j));
 		}
+	
 	printf("%d %d\n", matrixGetRows(a), matrixGetCols(a));
     if (!equals(a, b)) {
-        printf("diff after set");
+        printf("\n===diff after set===\n");
         return 0;
     }
     
-    //b.scale(13.52);
-    matrixScale(a, 13.52);
-    /*for (int i = 0; i < N; ++i)
+    b = b.scale(13.52);
+    a = matrixScale(a, 13.52);
+    for (int i = 0; i < N; ++i)
 		for (int j = 0; j < M; ++j)
-			printf("(%.1f %.1f) ", b.get(i, j), matrixGet(a, i, j));
+			printf("(%.2f %.2f) ", b.get(i, j), matrixGet(a, i, j));
 			
-    if (!equals(a, b)) {
-        printf("diff after scale");
+    /*if (!equals(a, b)) {
+        printf("\n===diff after scale===\n");
         return 0;
     }*/
 	return 0;

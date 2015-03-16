@@ -330,33 +330,28 @@ matrixMul:          mov r8, [rdi + cols]
                     mov rsi, [rsi + cells]
                     mov rdx, rsi
                     mov rbx, r10
+                    shl rbx, 2
                     mov rbp, r9
-.mul_loop_1:        dec r8
-                    mov rsi, rdx
+.mul_loop_1:        mov rsi, rdx
                     mov r9, rbp
-.mul_loop_2:        dec r9
-                    mov r10, rbx
-                    shr r10, 2
+.mul_loop_2:        mov r10, rbx
+                    shr r10, 4
                     xorps xmm0, xmm0
-.mul_loop_3:        dec r10
-                    movups xmm1, [rdi]              ; calculate dot product
+.mul_loop_3:        movups xmm1, [rdi]              ; calculate dot product
                     movups xmm2, [rsi]
                     dpps xmm1, xmm2, 0xF1
                     addss xmm0, xmm1
                     lea rdi, [rdi + 16]
                     lea rsi, [rsi + 16]
-                    test r10, r10
+                    dec r10
                     jnz .mul_loop_3
-                    sub rdi, rbx
-                    sub rdi, rbx
-                    sub rdi, rbx
                     sub rdi, rbx
                     movss [rcx], xmm0
                     lea rcx, [rcx + 4]
-                    test r9, r9
+                    dec r9
                     jnz .mul_loop_2
-                    lea rdi, [rdi + rbx * 4]
-                    test r8, r8
+                    lea rdi, [rdi + rbx]
+                    dec r8
                     jnz .mul_loop_1
                     pop rdi
                     push rax

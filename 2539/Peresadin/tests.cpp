@@ -68,20 +68,25 @@ int main() {
     fflush(stdout);
 	a = matrixTranspose(a);
     b = b.transpose();
-    for (int i = 0; i < M; ++i)
-		for (int j = 0; j < N; ++j)
-			printf("(%.2f %.2f)", matrixGet(a, i, j), b.get(i, j));
     if (!equals(a, b)) {
         printf("\n===diff after transpose===\n");
         return 0;
     }
     
-	/*a = matrixMul(a, c);
+    printf("mul testing...\n");
+    fflush(stdout);
+	matrixMul(a, c);
     b = b.mul(d);
     if (!equals(a, b)) {
         printf("\n===diff after mul===\n");
         return 0;
-    }*/
+    }
+    
+    
+    printf("deleting testing...\n");
+    fflush(stdout);
+	matrixDelete(a);
+	matrixDelete(c);
 	return 0;
 }
 

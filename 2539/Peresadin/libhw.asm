@@ -190,12 +190,12 @@ matrixMul:
     push rbp
     push r13
 
-    mov r11, rdi
+    mov r13, rdi
     mov r12, rsi
-    mov rdi, [r11 + initRows]
+    mov rdi, [r13 + initRows]
     mov rsi, [r12 + initCols]
     call matrixNew
-    mov rdi, r11
+    mov rdi, r13
     mov rsi, r12
 
     push rax
@@ -203,12 +203,13 @@ matrixMul:
     call matrixTranspose
     xchg rsi, rdi
     mov rsi, rax
+    mov rdx, rsi
     pop rax
 
     mov rbp, [rax + data]
-    mov rcx, [r11 + cols]
-    mov r11, [r11 + rows]
-    mov r12, [r12 + cols]
+    mov rcx, [rdi + cols]
+    mov r11, [rdi + rows]
+    mov r12, [rsi + cols]
     mov rdi, [rdi + data]
     mov rsi, [rsi + data]
     xor r8, r8
@@ -245,12 +246,14 @@ matrixMul:
         inc r8
         cmp r8, r11
         jne .loop1
-    mov rdi, rsi
-    call matrixDelete
-
     pop r13
     pop rbp
     pop r12
+    push rax
+    mov rdi, rdx
+    call matrixDelete
+    pop rax
+
     ret
     .error
     mov rax, 0

@@ -42,13 +42,19 @@ matrixNew:
     mov [rax + cols], rsi
 
     imul rdi, rsi
+    mov rcx, rdi
+    shl rdi, 2
+    push rdx
+    push rcx
     call malloc
+    pop rcx
+    pop rdx
     mov [rdx + data], rax
 
-    mov rcx, rdi
     .set_zeroes
         mov dword [rax + 4 * rcx - 4], 0
         loop .set_zeroes
+    mov rax, rdx
     ret
 
 matrixDelete:
@@ -71,7 +77,8 @@ loadAdress:
     imul rsi, [rdi + cols]
     add rsi, rdx
     shl rsi, 2
-    lea rax, [rdi + data + rsi]
+    mov rax, [rdi + data]
+    add rax, rsi
     ret
 
 matrixGet:
@@ -84,42 +91,24 @@ matrixSet:
     movss [rax], xmm0
     ret
 
-matrixClone:
+matrixScale:
     push rbp
-    push rsi
-    push rcx
     mov rbp, rdi
     mov rdi, [rbp + initRows]
     mov rsi, [rbp + initCols]
     call matrixNew
-    mov rdi, [rax + data]
-    mov rsi, [rbp + data]
-    mov rcx, [rax + rows]
-    imul rcx, [rax + cols]
-    .copy
-        mov rbp, [rsi + 4 * rcx - 4]
-        mov qword [rdi + 4 * rcx - 4], rbp
-        loop .copy
-    pop rcx
-    pop rsi
-    pop rbp
-    ret
-
-matrixScale:
-    push rcx
-    call matrixClone
-    mov rcx, [rdi + rows]
-    imul rcx, [rdi + cols]
+    mov rcx, [rbp + rows]
+    imul rcx, [rbp + cols]
     unpcklps xmm0, xmm0
     unpcklps xmm0, xmm0
     .loop
-        movups xmm1, [rax + data + 4 * rcx - 4]
-        mulss xmm1, xmm0
+        movups xmm1, [rbp + data + 4 * rcx - 4]
+        mulps xmm1, xmm0
         movups [rax + data + 4 * rcx - 4], xmm1
         sub rcx, 4
         cmp rcx, 0
         jne .loop
-    pop rcx
+    pop rbp
     ret
 
 matrixAdd:

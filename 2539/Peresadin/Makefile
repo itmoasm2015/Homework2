@@ -4,7 +4,7 @@ CFLAGS = -g -L. -I../../include
 all: tests
 
 tests: libhw.a tests.o tmatrix.o
-	g++ -o tests $(CFLAGS) tests.o tmatrix.o -lhw
+	g++ -o tests $(CFLAGS) tests.o tmatrix.o -lhw -fsanitize=address
 
 tests.o: tests.cpp
 	g++ -o tests.o tests.cpp $(CFLAGS) -c 
@@ -22,3 +22,4 @@ clean:
 	rm -f libhw.a
 	rm -f libhw.o
 	rm -f tests.o
+	rm -f tmatrix.o

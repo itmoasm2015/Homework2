@@ -3,12 +3,15 @@ CFLAGS = -g -L. -I../../include
 
 all: tests
 
-tests: libhw.a tests.o
-	g++ -o tests $(CFLAGS) tests.o -lhw
+tests: libhw.a tests.o tmatrix.o
+	g++ -o tests $(CFLAGS) tests.o tmatrix.o -lhw
 
 tests.o: tests.cpp
-	g++ -o tests.o $(CFLAGS) -c tests.cpp
+	g++ -o tests.o tests.cpp $(CFLAGS) -c 
 
+tmatrix.o: tmatrix.cpp
+	g++ -o tmatrix.o tmatrix.cpp $(CFLAGS) -c 
+	
 libhw.a: libhw.o
 	ar rcs libhw.a libhw.o
 

@@ -5,20 +5,29 @@ extern free
 
 global matrixNew
 global matrixDelete
+global matrixGetRows
+global matrixGetCols
+global matrixGet
+global matrixSet
+global matrixScale
+global matrixAdd
+global matrixMul
 
 struc Matrix
-    rows:     resd 1
-    cols:     resd 1
-    data:     resd 1
-    initRows: resd 1
-    initCols: resd 1
+    rows:     resq 1
+    cols:     resq 1
+    data:     resq 1
+    initRows: resq 1
+    initCols: resq 1
 endstruc
 
 matrixNew:
+    push rsi
     push rdi
     mov rdi, Matrix_size
     call malloc
     pop rdi
+    pop rsi
     mov rdx, rax ;rdx - указатель на результирующую структуру
     mov [rax + initRows], rdi
     mov [rax + initCols], rsi
@@ -43,7 +52,11 @@ matrixNew:
     ret
 
 matrixDelete:
-    ;TODO 
+    push rdi
+    mov rdi, [rdi + data]
+    call free
+    pop rdi
+    call free
     ret
 
 matrixGetRows:
@@ -55,10 +68,10 @@ matrixGetCols:
     ret
 
 loadAdress:
-    imul r8, r9
-    lea rax, [rdi + data + rdx]
     imul rsi, [rdi + cols]
-    lea rax, [rax + rsi]
+    add rsi, rdx
+    shl rsi, 2
+    lea rax, [rdi + data + rsi]
     ret
 
 matrixGet:
@@ -139,6 +152,7 @@ matrixTranspose:
     push rbp
     push rdi
     push rsi
+    push r11
     mov rbp, rdi
     mov rsi, [rbp + initRows]
     mov rdi, [rbp + initCols]
@@ -161,6 +175,7 @@ matrixTranspose:
         inc r8
         cmp r8, rsi
         jne .loop1
+    pop r11
     push rsi
     push rdi
     push rbp
@@ -182,15 +197,17 @@ matrixMul:
     mov rdi, r11
     mov rsi, r12
 
+    push rax
     xchg rsi, rdi
     call matrixTranspose
     xchg rsi, rdi
-    xchg rax, rsi
+    mov rsi, rax
+    pop rax
 
     mov rbp, [rax + data]
-    mov rcx, [rdi + cols]
-    mov r11, [rdi + rows]
-    mov r12, [rsi + cols]
+    mov rcx, [r11 + cols]
+    mov r11, [r11 + rows]
+    mov r12, [r12 + cols]
     xor r8, r8
     .loop1
         xor r9, r9

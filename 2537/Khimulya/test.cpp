@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include <matrix.h>
+#include <cmath>
 #include <iostream>
 #include <random>
 #include <boost/numeric/ublas/matrix.hpp>
@@ -58,12 +59,18 @@ namespace {
         }
     };
 
-    void assertEqMatrices(const pair& matrices) {
-        for (int i = 0; i < matrices.rows; i++) {
-            for (int j = 0; j < matrices.columns; j++) {
-                ASSERT_EQ(matrices.sample(i, j), matrixGet(matrices.hw, i, j));
+    const float eps = 10e-7;
+
+    void assertEqMatrices(Matrix hw, matrix_ublas sample) {
+        for (int i = 0; i < sample.size1(); i++) {
+            for (int j = 0; j < sample.size2(); j++) {
+                ASSERT_TRUE(abs(sample(i, j) - matrixGet(hw, i, j)) < eps);
             }
         }
+    }
+
+    void assertEqMatrices(const pair& matrices) {
+        assertEqMatrices(matrices.hw, matrices.sample);
     }
 }
 
@@ -92,7 +99,7 @@ TEST(hwmatrices, randomSetGet) {
 
 namespace {
     const unsigned int scalarRows = 100;
-    const unsigned int scalarColumns = 100;
+    const unsigned int scalarColumns = 104;
     const unsigned int scalarIterations = 100;
 
     pair genRandomPair(unsigned int rows, unsigned int cols) {
@@ -142,7 +149,7 @@ TEST(hwmatrices, incorrectAdd) {
 
 namespace {
     const unsigned int addRows = 100;
-    const unsigned int addColumns = 100;
+    const unsigned int addColumns = 104;
     const unsigned int addIterations = 100;
 }
 
@@ -156,7 +163,7 @@ TEST(hwmatrices, randomAdd) {
         Matrix copy2 = matrixAdd(test2.hw, test1.hw);
         test1.sample += test2.sample;
         test2.sample = test1.sample;
-        // check if source matrices are changed
+        // check if source matrices are intact
         assertEqMatrices(old1);
         assertEqMatrices(old2);
         test1.hw = copy1;
@@ -165,23 +172,41 @@ TEST(hwmatrices, randomAdd) {
         assertEqMatrices(test2);
     }
 }
-/*    pair test1 = genRandomPair(addRows, addColumns);
-    for (int i = 0; i < addRows; i++) {
-        for (int j = 0; j < addColumns; j++) {
-            matrixSet(test1.hw, i, j, 1);
-        }
+
+TEST(hwmatrices, incorrectMul) {
+    Matrix first = matrixNew(20, 30);
+    Matrix second = matrixNew(40, 20);
+    Matrix third = matrixNew(100, 100);
+
+    if (matrixMul(first, second) != NULL ||
+        matrixMul(first, third) != NULL  || matrixAdd(third, first) != NULL  ||
+        matrixAdd(second, third) != NULL || matrixAdd(third, second) != NULL) {
+        FAIL();
     }
-    pair test2 = genRandomPair(addRows, addColumns);
-    for (int i = 0; i < addRows; i++) {
-        for (int j = 0; j < addColumns; j++) {
-            matrixSet(test2.hw, i, j, 1);
-        }
+
+    matrixDelete(first);
+    matrixDelete(second);
+    matrixDelete(third);
+}
+
+namespace {
+    const unsigned int mulIterations = 10;
+    const unsigned int mulRows0 = 50;
+    const unsigned int mulColumns0 = 100;
+    const unsigned int mulRows1 = 100;
+    const unsigned int mulColumns1 = 200;
+}
+
+TEST(hwmatrices, matrixMul) {
+    for (int i = 0; i < mulIterations; i++) {
+        pair test1 = genRandomPair(mulRows0, mulColumns0);
+        pair test2 = genRandomPair(mulRows1, mulColumns1);
+        Matrix copy = matrixMul(test1.hw, test2.hw);
+        matrix_ublas product = boost::numeric::ublas::prod(test1.sample, test2.sample);
+        assertEqMatrices(copy, product);
+        // check if source matrices are intact
+        assertEqMatrices(test1);
+        assertEqMatrices(test1);
+        matrixDelete(copy);
     }
-    Matrix copy = matrixAdd(test1.hw, test2.hw);
-    for (int i = 0; i < addRows; i++) {
-        for (int j = 0; j < addColumns; j++) {
-            std::cout << matrixGet(copy, i, j) << " ";
-        }
-        std::cout << std::endl;
-    }
-    matrixDelete(copy);*/
+}

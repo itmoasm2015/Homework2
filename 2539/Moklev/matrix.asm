@@ -37,37 +37,41 @@ section .text
 matrixNew: 
     push_x64 ; save needed registers (from rbx, r12 - r15)
     mov rbp, rsp
-    ;  $! fix for windows: rcx -> rdi
-    push rcx
+    push rdi ; save arguments
+    push rsi ; malloc will overwrite them
     
-    
-    ;  $! fix for windows: rcx -> rdi
-    mov rcx, 16 ; sizeof(unsigned int) * 2 + sizeof(float*) 
+    mov rdi, 16 ; sizeof(unsigned int) * 2 + sizeof(float*) 
     call malloc ; void* malloc(size_t size)
     
-    pop rcx
-    
-    mov rax, rcx
-    pop_x64
-    ret
+    pop rsi ; restore arguments
+    pop rdi 
     
     test rax, rax  ; if malloc returned NULL
     jz .return
     
 .malloc_ok:
     
-    ;  $! rcx -> rdi
-    ;mov ecx, dword [rbp]
-    mov dword [rax], ecx
-    mov dword [rax + 4], 69
-    mov dword [rax + 8], 107
+    mov dword [rax], edi
+    mov dword [rax + 4], esi
+
+    push rax ; save return value, aligned_alloc will overwrite it
+    
+    mov rax, rdi
+    mul rsi
+    mov rsi, rax ; size (rows * cols)
+    mov rdi, 16  ; alignment
+    call aligned_alloc ; void* aligned_alloc(size_t alignment, size_t size)
+    mov rcx, rax
+     
+    pop rax ; restore return value
+    
+    mov qword [rax + 8], rcx
          
     ; windows: rcx, rdx, r8, r9, stack 
     ; linux:   rdi, rsi, rdx, rcx, r8, r9, stack
     
     
 .return:            
-    add rsp, 8
     pop_x64
     ret
     

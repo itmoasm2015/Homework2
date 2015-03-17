@@ -258,6 +258,7 @@ matrixScale:
 
         pop rdi
         pop r8
+        xorps xmm1, xmm1
         ret
 
 ; Matrix matrixAdd(Matrix a, Matrix b);
@@ -451,6 +452,8 @@ matrixMul:
         pop r10
         pop r9
         pop r8
+        xorps xmm1, xmm1
+        xorps xmm2, xmm2
         ret
     .fail:
         xor rax, rax

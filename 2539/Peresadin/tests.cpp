@@ -102,17 +102,27 @@ void stressAdd(int tests) {
 		int n = randInt(1000, 5000);
 		int m = randInt(1000, 5000);
 		Matrix a = randMatrxix(n, m);
-		Matrix b = randMatrxix(n, m);
+		Matrix b;
+		bool diff = false;
+		if (randInt(1, 2) == 1)
+			b = randMatrxix(n, m);
+		else {
+			b = randMatrxix(randInt(1000, 5000), randInt(1000, 5000));
+			diff = true;
+		}
 		int l = clock();
 		Matrix my = matrixAdd(a, b);
 		double tmy = (clock() - l) * 1.0 / CLOCKS_PER_SEC;
 		
-		l = clock();
-		TMatrix ok = TMatrix(a).add(b);
-		double tok = (clock() - l) * 1.0 / CLOCKS_PER_SEC;
-		
-		assert(equals(my, ok));
-		printf("test = %d: diff time = %.3f\n", test + 1, tok - tmy);
+		if (!diff) {
+			l = clock();
+			TMatrix ok = TMatrix(a).add(b);
+			double tok = (clock() - l) * 1.0 / CLOCKS_PER_SEC;
+			
+			assert(equals(my, ok));
+			printf("test = %d: diff time = %.3f\n", test + 1, tok - tmy);
+		} else
+			printf("test = %d: diff dims\n", test + 1);
 		matrixDelete(a);
 		matrixDelete(b);
 	}
@@ -224,7 +234,6 @@ int main() {
 	stressAdd(10);
 	stressTranspose(10);
 	stressMul(10);
-	//stressAll(10);
 	return 0;
 }
 

@@ -207,6 +207,8 @@ matrixAdd:
         jns .loop;если rcx >= 0 - продолжаем
     ret
     .error;если размеры матрицы не совпадают - возвращаем 0
+    pop rsi
+    pop rdi
     xor rax, rax
     ret
 

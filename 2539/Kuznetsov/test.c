@@ -106,6 +106,28 @@ int testMul(int rows, int cols) {
 	return result;
 }
 
+int testZeroMul(int rows, int cols) {
+	Matrix a = matrixNew(rows, 0);
+	Matrix b = matrixNew(0, cols);
+	
+	int result = 1;
+	
+	Matrix c = matrixMul(a, b);
+	if(c == 0)
+		return 0;
+	
+	Matrix zeros = matrixNew(rows, cols);
+	
+	result *= matrixEquals(c, zeros);
+	
+	matrixDelete(a);
+	matrixDelete(b);
+	matrixDelete(c);
+	matrixDelete(zeros);
+	
+	return result;
+}
+
 #define TEST(a) test++; if(!((a)(rows, cols))) printf("Test failed: %s(%d, %d)\n", #a, rows, cols); else success++;
 
 int main() {
@@ -119,6 +141,7 @@ int main() {
 			TEST(testScale);
 			TEST(testAddition);
 			TEST(testMul);
+			TEST(testZeroMul);
 		}
 	}
 	

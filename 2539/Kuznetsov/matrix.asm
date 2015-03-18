@@ -135,11 +135,11 @@ matrixClone:
 	
 	pop rdi ; restore newly created matrix into rdi (was pushed as rax)
 	
-	add rcx, 4 ; add 4 dwords for size fields
-	
 	mov rax, rdi
 	
 	mov rsi, r12
+	add rsi, 16
+	add rdi, 16 ; add 16 bytes to skip size fields initialized by matrixNew
 	rep movsd ; copy all the bytes
 	
 .return
@@ -274,6 +274,7 @@ matrixScale:
 	
 	pshufd xmm1, [rsp], 0 ; load previously saved argument into all four of floats in xmm1
 	
+	jrcxz .return ; zero-sized matrices, beware
 .mul_loop
 	sub rcx, 4
 	movaps xmm0, [rax + rcx * 4 + 16]
@@ -283,6 +284,7 @@ matrixScale:
 	test rcx, rcx
 	jnz .mul_loop
 	
+.return
 	leave ; this leave restores rsp to where it was before stack alignment
 	ret
 
@@ -330,6 +332,12 @@ matrixMul:
 	add r9, 3
 	and r9, ~3
 	
+	test r9, r9
+	jz .return
+	
+	mov r8, [r12]
+	test r8, r8
+	jz .return ; handle zero-sized matrices
 .outer_loop:
 	sub r9, 4 ; loop counter is decreased in the beginning of loop due to reversed direction
 	
@@ -352,6 +360,8 @@ matrixMul:
 	
 	mov r11, rsi ; r11: inner loop counter
 	
+	test r11, r11
+	jz .after_accumulator_loop ; check for zero-sized matrix
 .accumulator_loop:
 	dec r11 ; again, see above remarks about direction of loop counters
 	
@@ -374,6 +384,7 @@ matrixMul:
 	test r11, r11
 	jnz .accumulator_loop
 	
+.after_accumulator_loop:
 	movaps [r10 + rdi * 4 + 16], xmm0 ; write out the result
 	
 	test r8, r8

@@ -6,7 +6,7 @@ LD_FLAGS = -L. -lgmp -lgmpxx -lpthread -lboost_math_tr1 -lhw
 ASM_FLAGS = -f elf64 -g dwarf2
 GTEST = gtest/gtest-all.cc gtest/gtest.h gtest/gtest_main.cc
 
-all: libhw.a test clean_obj
+all: libhw.a clean_obj
 
 libhw.a: libhw.o
 	$(AR) rcs libhw.a libhw.o

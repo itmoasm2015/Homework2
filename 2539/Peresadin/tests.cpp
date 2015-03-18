@@ -24,8 +24,8 @@ bool equals(const Matrix& a, const TMatrix& b) {
 	for (int i = 0; i < n; ++i) 
 		for (int j = 0; j < m; ++j)
             if (fabs(b.get(i, j) - matrixGet(a, i, j)) > 0.01) {
-				printf("%.3f\n", b.get(i, j));
-				printf("%d %d %.2f\n", i, j, fabs(b.get(i, j) - matrixGet(a, i, j)));
+				//printf("%.3f\n", b.get(i, j));
+				//printf("%d %d %.2f\n", i, j, fabs(b.get(i, j) - matrixGet(a, i, j)));
                 return false;
 			}
     return true;
@@ -47,7 +47,7 @@ float randFloat() {
 }
 
 int randInt(int l, int r) {
-	int x = rand() % (r - l);
+	int x = rand() % (r - l + 1);
 	if (x < 0) x = -x;
 	return x + l;
 }
@@ -77,8 +77,8 @@ void stressConstructor(int tests) {
 void stressScale(int tests) {
 	printf("===stress scale===\n");
 	for (int test = 0; test < tests; ++test) {
-		int n = randInt(500, 5000);
-		int m = randInt(500, 5000);
+		int n = randInt(1000, 5000);
+		int m = randInt(1000, 5000);
 		float k = randFloat();
 		Matrix a = randMatrxix(n, m);
 		TMatrix v(a);
@@ -134,13 +134,68 @@ void stressMul(int tests) {
 		double tok = (clock() - l) * 1.0 / CLOCKS_PER_SEC;
 		
 		assert(equals(res, ok));
-		printf("test = %d : mytime = %.3f oktime = %.3f\n", test + 1,  tmy, tok);
+		printf("test = %d : mytime = %.3f oktime = %.3f\n", test + 1, tmy, tok);
 		matrixDelete(b);
 		matrixDelete(a);
 		matrixDelete(res);
 	}
 }
 
+void stressAll(int tests) {
+	printf("===stressAll===\n");
+	const int T = 50;
+	for (int test = 1; test <= tests; ++test) {
+		Matrix a = randMatrxix(randInt(1, T), randInt(1, T));
+		TMatrix ta(a);
+		//printf("r c %d %d\n", ta.rows(), ta.cols());
+		printf("test = %d:\n", test);
+		fflush(stdout);
+		for (int i = 0; i < 10; ++i) {
+			int tp = randInt(1, 4);
+			printf("%d ", tp);
+			fflush(stdout);
+			for (int i1 = 0; i1 < ta.rows(); ++i1) {
+				for (int j1 = 0; j1 < ta.cols(); ++j1)
+					printf("%.3f ", matrixGet(a, i1, j1));
+				printf("\n");
+			}
+			if (tp == 1) {
+				Matrix b = randMatrxix(matrixGetRows(a), matrixGetCols(a));
+				TMatrix tb(b);
+				Matrix res = matrixAdd(a, b);
+				ta = ta.add(tb);
+				matrixDelete(a);
+				matrixDelete(b);
+				a = res;
+			} else if (tp == 2) {
+				float k = randFloat();
+				Matrix res = matrixScale(a, k);
+				ta = ta.scale(k);
+				matrixDelete(a);
+				a = res;
+			} else if (tp == 3) {
+				Matrix res = matrixTranspose(a);
+				ta = ta.transpose();
+				matrixDelete(a);
+				a = res;
+			} else if (tp == 4) {
+				Matrix b = randMatrxix(matrixGetCols(a), randInt(1, T));
+				TMatrix tb(b);
+				Matrix res = matrixMul(a, b);
+				ta = ta.mul(tb);
+				matrixDelete(a);
+				matrixDelete(b);
+				a = res;
+			}
+			if (!equals(a, ta)) {
+				printf("\nfailed after %d\n", tp);
+				fflush(stdout);
+				assert(0);
+			}
+		}
+		printf("\n");
+	}
+}
 void stressTranspose(int tests) {
 	printf("===stress transpose===\n");
 	for (int test = 0; test < tests; ++test) {
@@ -163,11 +218,13 @@ void stressTranspose(int tests) {
 }
 
 int main() {
+	srand(time(NULL));
 	stressConstructor(10);
 	stressScale(10);
 	stressAdd(10);
 	stressTranspose(10);
 	stressMul(10);
+	//stressAll(10);
 	return 0;
 }
 

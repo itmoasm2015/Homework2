@@ -1,4 +1,3 @@
-
 section .text
 
 extern malloc
@@ -146,7 +145,15 @@ matrixScale:
     mov rbp, rdi
     mov rdi, [rbp + initRows]
     mov rsi, [rbp + initCols]
+    push rbp
+    mov rbp, [rsp + 8];восстанавливаем rbp перед вызовом matrixNew
+    sub rsp, 8
+    movss [rsp], xmm0;сохраняем xmm0
     call matrixNew;создаем новую матрицу в rax
+    movss xmm0, [rsp]
+    add rsp, 8
+    pop rbp
+
     mov rcx, [rbp + rows]
     imul rcx, [rbp + cols];считаем кол-во элементов в матрице
     sub rcx, 4
@@ -200,6 +207,8 @@ matrixAdd:
         jns .loop;если rcx >= 0 - продолжаем
     ret
     .error;если размеры матрицы не совпадают - возвращаем 0
+    pop rsi
+    pop rdi
     xor rax, rax
     ret
 
@@ -216,7 +225,10 @@ matrixTranspose:
     mov rbp, rdi;rbp - указатель на исходную матрицу
     mov rsi, [rbp + initRows]
     mov rdi, [rbp + initCols]
+    push rbp
+    mov rbp, [rsp + 24];восстанавливем rbp перед вызовом matrixNew
     call matrixNew;создаем новую матрицу размером (m, n) в rax
+    pop rbp
     mov rsi, [rbp + rows]
     mov rdi, [rbp + cols]
     ;rsi, rdi - кол-во строк и столбцов в матрице
@@ -257,7 +269,6 @@ matrixMul:
     cmp rax, [rsi + initRows]
     jne .error;проверяем, что матрицы имею соместные размеры (n, m) и (m, k)
 
-    push rbp
     push r12
     push r13
     push r14
@@ -282,7 +293,8 @@ matrixMul:
     ;rdi - первая матрица
 	;rsi - вторая транспонированная матрица
 	;rax - матрица-результат
-
+	push rbp
+	
     mov rbp, [rax + data]
     mov rcx, [rdi + cols]
     mov r11, [rdi + rows]
@@ -329,12 +341,12 @@ matrixMul:
         inc r8;увеличиваем номер строки
         cmp r8, r11
         jne .loop1
-
+        
+    pop rbp
     pop r15
     pop r14
     pop r13
     pop r12
-    pop rbp
 
     push rax
     mov rdi, rdx

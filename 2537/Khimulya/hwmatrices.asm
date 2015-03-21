@@ -90,8 +90,10 @@ alignToFour:
         test r8, 3                      ; if two least bits are 0, r8 % 4 == 0 already
         jz .done                        ; r8 % 4 != 0
         add r8, 4                       ; ceil: (r8 + 4) / 4 == r8 / 4 + 1
-        and r8, 0xfffffffffffffffc      ; flush least two bits, now r8 % 4 == 0
-    .done:
+        shr r8, 2
+        shl r8, 2
+;        and r8, -4                      ; flush least two bits, now r8 % 4 == 0
+    .done:                              ; btw, -4 looks like 0xff..fc, but yasm warns about the latter somewhy
         ret
 
 ; void matrixDelete(Matrix matrix);
@@ -400,7 +402,7 @@ matrixMul:
         mov rdi, rsi                        ; b^T = rdi
         call matrixGetRows
         mov rsi, rax                        ; m = rsi
-        mov rdi, [rsp + 8]                  ; matrix a = rdi
+        mov rdi, [rsp]                  ; matrix a = rdi
         call matrixGetRows
         mov rdi, rax                        ; p = rdi
         call matrixAlloc                    ; create result matrix c, p = r9, m = r10

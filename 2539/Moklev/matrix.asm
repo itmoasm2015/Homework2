@@ -16,11 +16,17 @@
     pop rbp
 %endmacro
 
+%macro fit_4 1    ; make number divides by 4 
+    add %1, 3
+    and %1, ~3
+%endmacro
+
 
 extern aligned_alloc
 extern malloc
 
 global matrixNew
+global matrixDelete
 
 ;  # Matrix data type definition
 ;
@@ -57,16 +63,28 @@ matrixNew:
     push rax ; save return value, aligned_alloc will overwrite it
     
     mov rax, rdi
+    fit_4 rax    ; make size divides by 4
+    fit_4 rsi 
     mul rsi
     mov rsi, rax ; size (rows * cols)
+    push rsi     ; save matrix size for future use
     mov rdi, 16  ; alignment
     call aligned_alloc ; void* aligned_alloc(size_t alignment, size_t size)
     mov rcx, rax
-     
+
+    pop rsi ; restore matrix size
     pop rax ; restore return value
-    
-    mov qword [rax + 8], rcx
-         
+    mov qword [rax + 8], rcx ; store pointer to matrix data // matrix.data = rcx
+
+    ; # Move matrix size to /counter/ register rcx
+    ; # Fill the matrix data with 0.0f values
+    mov rcx, rsi
+    mov rsi, [rax + 8]
+.fill_zeroes:
+    mov dword [rsi + 4 * rcx - 4], 0.0
+    loop .fill_zeroes
+   
+
     ; windows: rcx, rdx, r8, r9, stack 
     ; linux:   rdi, rsi, rdx, rcx, r8, r9, stack
     

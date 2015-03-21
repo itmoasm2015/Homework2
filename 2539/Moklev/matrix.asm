@@ -16,17 +16,11 @@
     pop rbp
 %endmacro
 
-%macro fit_4 1    ; make number divides by 4 
-    add %1, 3
-    and %1, ~3
-%endmacro
-
 
 extern aligned_alloc
 extern malloc
 
 global matrixNew
-global matrixDelete
 
 ;  # Matrix data type definition
 ;
@@ -63,8 +57,6 @@ matrixNew:
     push rax ; save return value, aligned_alloc will overwrite it
     
     mov rax, rdi
-    fit_4 rax    ; make size divides by 4
-    fit_4 rsi 
     mul rsi
     mov rsi, rax ; size (rows * cols)
     push rsi     ; save matrix size for future use

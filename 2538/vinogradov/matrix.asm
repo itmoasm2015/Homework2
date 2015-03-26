@@ -358,7 +358,7 @@ matrixMul:
 
 .end:
 	mov rax, r14		; get the result matrix addr to return it
-	pop rdx			; get the result dimensions to return it
+	pop rdx			; get the result dimensions to return them
 
 	pop r14
 	pop r13

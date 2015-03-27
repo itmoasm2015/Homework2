@@ -203,6 +203,8 @@ matrixAdd:
     jmp .finish
 
 .bad_dimensions: ; matrices have uneven dimension and can not be added
+    pop rsi
+    pop rdi
     mov rax, 0
 
 .finish:

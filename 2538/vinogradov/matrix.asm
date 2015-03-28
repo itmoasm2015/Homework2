@@ -45,7 +45,7 @@ global matrixMul
 %endmacro
 
 ;; Matrix matrixNew(unsigned rows, unsigned cols)
-;; Allocates a new matrix and fill it with zeros
+;; Allocates a new matrix and fills it with zeros
 ;; input: rdi=rows, rsi=cols
 ;; output: rax=addr, rdx=cols:rows
 matrixNew:	

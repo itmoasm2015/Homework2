@@ -1,6 +1,14 @@
 extern malloc
 extern free
 
+%macro getAligned 1
+        add %1, (ALIGNMENT - 1)
+        and %1, ~(ALIGNMENT - 1)
+%endmacro
+
+%define getRows(r, m) mov r, [m]
+%define getCols(r, m) mov r, [m + 4]
+
 global matrixNew
 matrixNew:
         push rbp
@@ -11,17 +19,9 @@ matrixNew:
         mov ebx, eax
         mov edx, esi ; cols
         mov ecx, edx
+        getAligned eax
+        getAligned edx
 
-        test al, MASK_OMIT
-        jz .loadHeight
-        add eax, ALIGNMENT
-        and eax, MASK_REST
-.loadHeight:
-        test dl, MASK_OMIT
-        jz .allocate
-        add edx, ALIGNMENT
-        and edx, MASK_REST
-.allocate:
         mul edx
         shl rdx, 32
         mov edx, eax
@@ -41,9 +41,6 @@ matrixNew:
 global matrixDelete
 matrixDelete: jmp free
 
-%define getRows(r, m) mov r, [m]
-%define getCols(r, m) mov r, [m + 4]
-
 global matrixGetRows
 matrixGetRows:
         getRows(eax, rdi)
@@ -54,6 +51,30 @@ matrixGetCols:
         getCols(eax, rdi)
         ret
 
-ALIGNMENT equ 16
-MASK_OMIT equ ALIGNMENT - 1
-MASK_REST equ ~MASK_OMIT
+%macro loadCellAddress 0
+        ; rdi - address
+        ; rsi - row
+        ; rdx - column
+        getCols(ecx, rdi)
+        getAligned ecx
+        lea rdi, [rdi + 4 * rdx + 8]
+        mov eax, esi
+        mul ecx
+        shl rdx, 32
+        mov edx, eax
+        lea rdi, [rdi + 4 * rdx]
+%endmacro
+
+global matrixGet
+matrixGet:
+        loadCellAddress
+        movss xmm0, dword [rdi]
+        ret
+
+global matrixSet
+matrixSet:
+        loadCellAddress
+        movss dword [rdi], xmm0
+        ret
+
+ALIGNMENT equ 4

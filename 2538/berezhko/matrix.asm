@@ -324,6 +324,10 @@ matrixMul:
     mov [r9], r10    ; newRows = A.rows
     mov [r9+4], r11  ; newCols = B.cols
 
+    push r13
+    push r14
+    push r15
+
     ; for each row of C
     xor r13, r13 ; r13 = 0
     .loopRows:
@@ -383,6 +387,10 @@ matrixMul:
         mov eax, [r9]
         cmp r13, rax
         jnz .loopRows
+
+    pop r15
+    pop r14
+    pop r13
 
     mov rax, r9 ; rax = C.values
     ret

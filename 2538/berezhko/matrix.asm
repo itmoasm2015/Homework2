@@ -1,3 +1,5 @@
+section .text
+
 extern calloc, free
 extern printf
 
@@ -20,8 +22,6 @@ global matrixSet
 global matrixScale
 global matrixAdd
 global matrixMul
-
-section .text
 
 ;; Round reg %1 to the next multiply of 4
 ;; This macros useful for simple getting four component vector

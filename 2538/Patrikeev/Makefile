@@ -14,9 +14,6 @@ tester: libhw.a tester.o
 tester.o: tester.cpp
 	$(CPP) tester.cpp -c -o tester.o $(CPP_FLAGS)
 
-#tester: libhw.a tester.o c_impl.o
-#	$(CPP) $(C_FLAGS) -lhw c_impl.o tester.o -o tester
-
 c_impl.o: c_impl.c
 	$(GCC) -std=c99 $(C_FLAGS) -c c_impl.c -o c_impl.o
 

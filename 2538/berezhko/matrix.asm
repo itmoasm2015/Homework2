@@ -1,13 +1,14 @@
+section .text
+
 extern calloc, free
 extern printf
 
-; 4byte = 4 bytes
-; Matrix is an array of 4bytes where first 4byte is row count, second 4byte is column count
-; Cols rounded to the nearest multiply of 4 for using SSE
+; Matrix is an array of 32bit numbers where first number is row count, second number is column count
+; Cols rounded to the nearest multiply of 4 for using XMM vector registers (non-scalar) if it's possible
 ; indexes from 3 to 3+cols-1 is 1st row
 ;         from 3+cols to 3+2*cols-1 is 2nd row, etc.
 ;
-; So, reg+2 in some places in the code means that first and second 4bytes are for the column and row count
+; So, reg+2 in some places in the code means that first and second numbers are for the column and row count
 
 ; From matrix to array index:
 ; (row, col) -> row * col_cnt + col + 2
@@ -22,69 +23,79 @@ global matrixScale
 global matrixAdd
 global matrixMul
 
+;; Round reg %1 to the next multiply of 4
+;; This macros useful for simple getting four component vector
 %macro roundToFour 1
-        sub %1, 1
-        and %1, ~3
+        sub %1, 1  ; if %1 is multiply of 4
+        and %1, ~3 ; zero last two bits
         add %1, 4
 %endmacro
 
+;; Allocate memory for the new matrix and fillt it with zeros
+;;
+;; Input:
+;;      rdi - row count
+;;      rsi - column count
+;; Output:
+;;      rax - address of the memory block allocated by the function.
 matrixNew:
-    ; rdi = rows
-    ; rsi = cols
-
     mov rax, rsi
     roundToFour rax
     mul rdi     ; rax = rdi*rsi (rows*cols)
-    add rax, 2  ; for row and column count
-    ; rax = 2 + (rows*cols)
+    add rax, 2  ; rax = 2 + (rows*cols)
 
-    ; allocating of rax byte, size of byte = 4
+    ; allocating of rax numbers, size of one = 4
     push rdi
     push rsi
-    mov rdi, rax    ; count of byte
-    mov rsi, 4      ; size = 4
-    call calloc
-    ; rax = matrix.values
+    mov rdi, rax    ; number count
+    mov rsi, 4      ; number size
+    call calloc     ; rax = 2 + (rows*cols)
     pop rsi
     pop rdi
-
-    push rsi
-    push rdi
-    push rax
-    mov rsi, rax
-    mov rdi, fmtAl
-    mov rax, 0
-    call printf
-    pop rax
-    pop rdi
-    pop rsi
 
     mov [rax], rdi      ; values[0] = rows
     mov [rax+4], rsi    ; values[1] = cols
     ret
 
+;; Free memory that was allocated by matrixNew
+;;
+;; Input:
+;;      rdi - address of the matrix
 matrixDelete:
-    ; rdi = matrix.values
     call free
     ret
 
+;; Return matrix's row count
+;;
+;; Input:
+;;      rdi - address of the matrix
+;; Output:
+;;      rax - row count
 matrixGetRows:
-    ; rdi = matrix.values
     ; rows = matrix.values[0] = [rdi]
     mov eax, [rdi]
     ret
 
+;; Return matrix's column count
+;;
+;; Input:
+;;      rdi - address of the matrix
+;; Output:
+;;      rax - column count
 matrixGetCols:
-    ; rdi = matrix.values
     ; rows = matrix.values[1] = [rdi+4]
     mov eax, [rdi+4]
     ret
 
+;; Return element of matrix by the index of row and column
+;;
+;; Input:
+;;      rdi - address of the matrix
+;;      rsi - number of row
+;;      rdx - number of column
+;; Output:
+;;      xmm0 - matrix[row][column]
 matrixGet:
-    ; rdi = matrix.values
-    ; rsi = row
-    ; rdx = col
-
     ; (row, col) -> row * col_cnt + col + 2
     call matrixGetCols
     roundToFour rax
@@ -100,12 +111,14 @@ matrixGet:
     movss xmm0, [rdi+4*rax] ; xmm0 = values[rax]
     ret
 
+;; Set element of the matrix to the value by the index of row and column
+;;
+;; Input:
+;;      rdi - address of the matrix
+;;      rsi - number of row
+;;      rdx - number of column
+;;      xmm0 - value for setting
 matrixSet:
-    ; rdi = matrix.values
-    ; rsi = row
-    ; rdx = col
-    ; xmm0 = value
-
     ; (row, col) -> row * col_cnt + col + 2
     call matrixGetCols ; rax = col_cnt
     roundToFour rax
@@ -121,10 +134,14 @@ matrixSet:
     movss [rdi+4*rax], xmm0 ; values[rax] = xmm0 (value)
     ret
 
+;; Multiply matrix by the scalar and return result of this multiplying
+;;
+;; Input:
+;;      rdi - address of the first matrix A
+;;      xmm0 - scalar k
+;; Output:
+;;      rax - address of the new matrix C = A*k
 matrixScale:
-    ; rdi = matrix.values
-    ; xmm0 = 0:0:0:k
-
     movss xmm5, xmm0      ; xmm5 = 0:0:0:k
     movsldup xmm5, xmm5   ; xmm5 = 0:0:k:k
     unpcklps xmm5, xmm5   ; xmm5 = k:k:k:k
@@ -148,7 +165,7 @@ matrixScale:
     pop r11          ; load registers
     pop r10          ;
 
-    pop r11          ; load not rounded rcx
+    pop r11          ; load not rounded cols
 
     mov [r9], r10    ; newRows = rows
     mov [r9+4], r11  ; newCols = cols
@@ -160,11 +177,13 @@ matrixScale:
     mul r10
     mov rcx, rax
 
+    ; for each element of matrix multiply it by k
+    ; (we can multiply 4 numbers at once using vector SSE)
 .looptop:
     sub rcx, 4
-    movups xmm1, [rdi+(rcx+2)*4]
+    movups xmm1, [rdi+(rcx+2)*4] ; +2 for dimensions
     mulps xmm1, xmm5
-    movups [r9+(rcx+2)*4], xmm1
+    movups [r9+(rcx+2)*4], xmm1  ; +2 for dimensions
 .overit:
     cmp rcx, 0
     jnz .looptop
@@ -172,6 +191,14 @@ matrixScale:
     mov rax, r9 ; rax = newMatrix.values
     ret
 
+;; Sum two matrixes and return result of this sum
+;;
+;; Input:
+;;      rdi - address of the first matrix A
+;;      rsi - address of the first matrix B
+;; Output:
+;;      rax - address of the new matrix C = A + B
+;;              (rax = 0 if sizes of A and B are not equal)
 matrixAdd:
     ; rdi = A.values
     ; rsi = B.values
@@ -185,7 +212,7 @@ matrixAdd:
     mov rdx, rax        ; rdx = B.rows
     pop rdi             ; load rdi
     cmp rdx, r10        ; compare A.rows, B.rows
-    jnz .badSizes
+    jnz .badSizes       ; if not equal, return NULL
 
     call matrixGetCols
     mov r11, rax        ; r11 = A.cols
@@ -196,7 +223,7 @@ matrixAdd:
     mov rdx, rax        ; rdx = B.cols
     pop rdi             ; load rdi
     cmp rdx, r11        ; compare A.cols, B.cols
-    jnz .badSizes
+    jnz .badSizes       ; if not equal, return NULL
 
     push r11         ; save not rounded cols
     roundToFour r11
@@ -226,11 +253,12 @@ matrixAdd:
     mul r10
     mov rcx, rax
 
-
+    ; for each element of 2 matrix sum its
+    ; (we can sum 4 numbers at once using vector SSE)
 .looptop:
     sub rcx, 4
-    movups xmm0, [rdi+(rcx+2)*4]
-    movups xmm1, [rsi+(rcx+2)*4]
+    movups xmm0, [rdi+(rcx+2)*4] ; +2 for dimensions
+    movups xmm1, [rsi+(rcx+2)*4] ; +2 for dimensions
     addps xmm0, xmm1
     movups [r9+(rcx+2)*4], xmm0
 .overit:
@@ -244,6 +272,14 @@ matrixAdd:
     mov rax, 0
     ret
 
+;; Multiply two matrixes and return result of this multiplying
+;;
+;; Input:
+;;      rdi - address of the first matrix A
+;;      rsi - address of the first matrix B
+;; Output:
+;;      rax - address of the new matrix C = A * B
+;;              (rax = 0 if column count of A is not equal to row count of B)
 matrixMul:
     ; rdi = A.values
     ; rsi = B.values
@@ -256,15 +292,15 @@ matrixMul:
     mov rdx, rax        ; rdx = B.rows
     pop rdi             ; load rdi
     cmp rdx, r10        ; compare A.cols, B.rows
-    jnz .badSizes
+    jnz .badSizes       ; if not equal, return NULL
 
     call matrixGetRows
-    mov r10, rax        ; r10 = A.rows = newMatrix.rows
+    mov r10, rax        ; r10 = A.rows = C.rows
 
     push rdi            ; save rdi
     mov rdi, rsi
     call matrixGetCols
-    mov r11, rax        ; r11 = B.cols = newMatrix.cols
+    mov r11, rax        ; r11 = B.cols = C.cols
     pop rdi             ; load rdi
 
     push r11         ; save not rounded cols
@@ -276,8 +312,8 @@ matrixMul:
     push rsi         ;
     mov rdi, r10     ; rdi = rows
     mov rsi, r11     ; rci = cols
-    call matrixNew   ; rax = newMatrix.values
-    mov r9, rax      ; r9 = newMatrix.values
+    call matrixNew   ; rax = C.values
+    mov r9, rax      ; r9 = C.values
     pop rsi          ;
     pop rdi          ;
     pop r11          ; load registers
@@ -285,17 +321,25 @@ matrixMul:
 
     pop r11          ; load not rounded rcx
 
-    mov [r9], r10    ; newRows = rows
-    mov [r9+4], r11  ; newCols = cols
+    mov [r9], r10    ; newRows = A.rows
+    mov [r9+4], r11  ; newCols = B.cols
 
+    push r13
+    push r14
+    push r15
+
+    ; for each row of C
     xor r13, r13 ; r13 = 0
     .loopRows:
+        ; for each col of C
         xor r14, r14 ; r14 = 0
         .loopCols:
             ; (row, col) -> row * col_cnt + col + 2
-            xor r15, r15
             xorps xmm2, xmm2 ; xmm2 = 0
+            ; for each col of A
+            xor r15, r15     ; r15 = 0
             .loopInner:
+                ; get A[r13][r15]:
                 push rdi
                 push rsi
                 mov rsi, r13
@@ -305,6 +349,7 @@ matrixMul:
                 pop rsi
                 pop rdi
 
+                ; get B[r15][r14]:
                 push rdi
                 push rsi
                 mov rdi, rsi
@@ -322,13 +367,14 @@ matrixMul:
                 cmp r15, rax
                 jnz .loopInner
 
+            ; set sum of multiples to C[r13][r14]
             push rdi
             push rsi
             mov rdi, r9
             mov rsi, r13
             mov rdx, r14
             movss xmm0, xmm2
-            call matrixSet    ; newMatrix[r13][r14] = xmm0
+            call matrixSet    ; C[r13][r14] = xmm0
             pop rsi
             pop rdi
 
@@ -342,18 +388,13 @@ matrixMul:
         cmp r13, rax
         jnz .loopRows
 
-    mov rax, r9 ; rax = newMatrix.values
+    pop r15
+    pop r14
+    pop r13
+
+    mov rax, r9 ; rax = C.values
     ret
 
 .badSizes:
     mov rax, 0
     ret
-
-section .data
-msg:    db "Hello, world,", 0
-msg2:   db "...and goodbye!", 0
-fmtAl:    db 'New matrix allocated at %d',10,0
-fmt:    db '%ld',10,0
-fmtD:    db '%d',10,0
-fmtf:    db '%f',10,0
-rs dq 1.6

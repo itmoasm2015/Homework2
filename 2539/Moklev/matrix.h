@@ -5,7 +5,7 @@ typedef struct {
     unsigned int rows;
     unsigned int cols;
     float* data;
-} matrix_t, *Matrix;
+} *Matrix;
 
 Matrix matrixNew(unsigned int rows, unsigned int cols);
 void matrixDelete(Matrix matrix);

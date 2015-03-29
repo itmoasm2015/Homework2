@@ -29,8 +29,8 @@ global matrixMul
 %endmacro
 
 matrixNew:
-    ; rdi=rows
-    ; rsi=cols
+    ; rdi = rows
+    ; rsi = cols
 
     mov rax, rsi
     roundToFour rax
@@ -247,7 +247,6 @@ matrixAdd:
 matrixMul:
     ; rdi = A.values
     ; rsi = B.values
-
     call matrixGetCols
     mov r10, rax        ; r10 = A.cols
 
@@ -268,7 +267,6 @@ matrixMul:
     mov r11, rax        ; r11 = B.cols = newMatrix.cols
     pop rdi             ; load rdi
 
-
     push r11         ; save not rounded cols
     roundToFour r11
 
@@ -280,8 +278,8 @@ matrixMul:
     mov rsi, r11     ; rci = cols
     call matrixNew   ; rax = newMatrix.values
     mov r9, rax      ; r9 = newMatrix.values
-    pop rdi          ;
     pop rsi          ;
+    pop rdi          ;
     pop r11          ; load registers
     pop r10          ;
 
@@ -290,27 +288,62 @@ matrixMul:
     mov [r9], r10    ; newRows = rows
     mov [r9+4], r11  ; newCols = cols
 
-    roundToFour r11
+    xor r13, r13 ; r13 = 0
+    .loopRows:
+        xor r14, r14 ; r14 = 0
+        .loopCols:
+            ; (row, col) -> row * col_cnt + col + 2
+            xor r15, r15
+            xorps xmm2, xmm2 ; xmm2 = 0
+            .loopInner:
+                push rdi
+                push rsi
+                mov rsi, r13
+                mov rdx, r15
+                call matrixGet
+                movss xmm1, xmm0 ; xmm1 = A[r13][r15]
+                pop rsi
+                pop rdi
 
-    ; rcx = rax = cols*rows
-    mov rax, r11
-    mul r10
-    mov rcx, rax
+                push rdi
+                push rsi
+                mov rdi, rsi
+                mov rsi, r15
+                mov rdx, r14
+                call matrixGet ; xmm0 = B[r15][r14]
+                pop rsi
+                pop rdi
 
+                mulss xmm1, xmm0 ; xmm1 = A[r13][r15] * B[r15][r14]
+                addss xmm2, xmm1 ; xmm2 += xmm1
 
-;.looptop:
-;    sub rcx, 4
-;    movups xmm0, [rdi+(rcx+2)*4]
-;    movups xmm1, [rsi+(rcx+2)*4]
-;    addps xmm0, xmm1
-;    movups [r9+(rcx+2)*4], xmm0
-;.overit:
-;    cmp rcx, 0
-;    jnz .looptop
+                inc r15
+                mov eax, [rsi]
+                cmp r15, rax
+                jnz .loopInner
+
+            push rdi
+            push rsi
+            mov rdi, r9
+            mov rsi, r13
+            mov rdx, r14
+            movss xmm0, xmm2
+            call matrixSet    ; newMatrix[r13][r14] = xmm0
+            pop rsi
+            pop rdi
+
+            inc r14
+            mov eax, [r9+4]
+            cmp r14, rax
+            jnz .loopCols
+
+        inc r13
+        mov eax, [r9]
+        cmp r13, rax
+        jnz .loopRows
 
     mov rax, r9 ; rax = newMatrix.values
     ret
-
 
 .badSizes:
     mov rax, 0
@@ -321,5 +354,6 @@ msg:    db "Hello, world,", 0
 msg2:   db "...and goodbye!", 0
 fmtAl:    db 'New matrix allocated at %d',10,0
 fmt:    db '%ld',10,0
+fmtD:    db '%d',10,0
 fmtf:    db '%f',10,0
 rs dq 1.6

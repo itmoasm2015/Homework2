@@ -12,33 +12,36 @@ global matrixAdd
 global matrixMul
 
 section .data
-hello_str:      db     "hello!", 10, 0
-hello_len:      equ    $ - hello_str
-format:         db     "result %llu: ", 10, 0
-dat:            dq      1, 2, 3, 4
-da2:            dq      5, 6, 7, 8
+FORMAT:     db      "%u %u", 10, 0
 
 section .bss
-result:     resq    4
 
 section .text
 
 ;;Matrix matrixNew(unsigned int rows, unsigned int cols);
+;
+; Takes:
+;   RDI - unsigned int rows
+;   RSI - unsigned int cols
+; Returns:
+;   RAX - Matrix (=R8)
+; Uses:
+;   R8 - Matrix;
+
 matrixNew:
+
     push    rbp
-    mov     rbp, rsp
 
-    movups  xmm0, [dat]
-    movups  xmm1, [da2]
-    mulps   xmm0, xmm1
-    movups  [result], xmm0
+    mov     rax, rdi
+    mov     rbx, rsi
 
-    mov     eax, [result]
-    mov     ebx, [result + 4]
+    mov     rdi, FORMAT
+    mov     rsi, rax
+    mov     rdx, rbx
+    call    printf
 
-
-    mov     rsp, rbp
     pop     rbp
+
     ret
 
 ;;void matrixDelete(Matrix matrix);

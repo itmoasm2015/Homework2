@@ -95,25 +95,64 @@ matrixScale:
         mul ecx
         shl rdx, 32
         mov edx, eax
-        shr rdx, ALIGNMENT_LOG
         mov rax, rdi
 
         movlhps xmm0, xmm0
         haddps xmm0, xmm0
 .loop:
-        add rdi, 16
-        add rbx, 16
-        movaps xmm1, [rbx]
+        movaps xmm1, [rbx + 4 * rdx]
         mulps xmm1, xmm0
-        movaps [rdi], xmm1
-        dec rdx
-        test rdx, rdx
-        jg .loop
+        movaps [rdi + 4 * rdx], xmm1
+        sub rdx, 4
+        jnz .loop
 
         pop r13
         pop r12
         pop rbx
         ret
 
+global matrixAdd
+matrixAdd:
+        push rbx
+        push r12
+        push r13
+        push r14
+
+        mov r12, rdi
+        mov r13, rsi
+        getRows(edi, r12)
+        getRows(ecx, r13)
+        cmp edi, ecx
+        jne .badSizes
+        getCols(esi, r12)
+        getCols(ecx, r13)
+        cmp esi, ecx
+        jne .badSizes
+        mov ebx, edi
+        mov r14, rsi
+        call matrixNew
+        mov rdi, rax
+        mov rax, r14
+        getAligned eax
+        getAligned ebx
+        mul ebx
+        shl rdx, 32
+        mov edx, eax
+        mov rax, rdi
+.loop:
+        movaps xmm0, [r12 + rdx * 4]
+        addps xmm0, [r13 + rdx * 4]
+        movaps [rdi + rdx * 4], xmm0
+        sub rdx, 4
+        jz .success
+        jmp .loop
+.badSizes:
+        xor eax, eax
+.success:
+        pop r14
+        pop r13
+        pop r12
+        pop rbx
+        ret
+
 ALIGNMENT equ 4
-ALIGNMENT_LOG equ 2

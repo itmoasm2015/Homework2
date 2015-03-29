@@ -37,7 +37,7 @@ section .text
 ;;      rdi - row count
 ;;      rsi - column count
 ;; Output:
-;;      rax - adress of the memory block allocated by the function.
+;;      rax - address of the memory block allocated by the function.
 matrixNew:
     mov rax, rsi
     roundToFour rax
@@ -60,7 +60,7 @@ matrixNew:
 ;; Free memory that was allocated by matrixNew
 ;;
 ;; Input:
-;;      rdi - adress of the matrix
+;;      rdi - address of the matrix
 matrixDelete:
     call free
     ret
@@ -68,7 +68,7 @@ matrixDelete:
 ;; Return matrix's row count
 ;;
 ;; Input:
-;;      rdi - adress of the matrix
+;;      rdi - address of the matrix
 ;; Output:
 ;;      rax - row count
 matrixGetRows:
@@ -79,7 +79,7 @@ matrixGetRows:
 ;; Return matrix's column count
 ;;
 ;; Input:
-;;      rdi - adress of the matrix
+;;      rdi - address of the matrix
 ;; Output:
 ;;      rax - column count
 matrixGetCols:
@@ -90,7 +90,7 @@ matrixGetCols:
 ;; Return element of matrix by the index of row and column
 ;;
 ;; Input:
-;;      rdi - adress of the matrix
+;;      rdi - address of the matrix
 ;;      rsi - number of row
 ;;      rdx - number of column
 ;; Output:
@@ -114,7 +114,7 @@ matrixGet:
 ;; Set element of the matrix to the value by the index of row and column
 ;;
 ;; Input:
-;;      rdi - adress of the matrix
+;;      rdi - address of the matrix
 ;;      rsi - number of row
 ;;      rdx - number of column
 ;;      xmm0 - value for setting
@@ -137,10 +137,10 @@ matrixSet:
 ;; Multiply matrix by the scalar and return result of this multiplying
 ;;
 ;; Input:
-;;      rdi - adress of the first matrix A
+;;      rdi - address of the first matrix A
 ;;      xmm0 - scalar k
 ;; Output:
-;;      rax - adress of the new matrix C = A*k
+;;      rax - address of the new matrix C = A*k
 matrixScale:
     movss xmm5, xmm0      ; xmm5 = 0:0:0:k
     movsldup xmm5, xmm5   ; xmm5 = 0:0:k:k
@@ -194,10 +194,10 @@ matrixScale:
 ;; Sum two matrixes and return result of this sum
 ;;
 ;; Input:
-;;      rdi - adress of the first matrix A
-;;      rsi - adress of the first matrix B
+;;      rdi - address of the first matrix A
+;;      rsi - address of the first matrix B
 ;; Output:
-;;      rax - adress of the new matrix C = A + B
+;;      rax - address of the new matrix C = A + B
 ;;              (rax = 0 if sizes of A and B are not equal)
 matrixAdd:
     ; rdi = A.values
@@ -275,10 +275,10 @@ matrixAdd:
 ;; Multiply two matrixes and return result of this multiplying
 ;;
 ;; Input:
-;;      rdi - adress of the first matrix A
-;;      rsi - adress of the first matrix B
+;;      rdi - address of the first matrix A
+;;      rsi - address of the first matrix B
 ;; Output:
-;;      rax - adress of the new matrix C = A * B
+;;      rax - address of the new matrix C = A * B
 ;;              (rax = 0 if column count of A is not equal to row count of B)
 matrixMul:
     ; rdi = A.values

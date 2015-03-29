@@ -4,6 +4,7 @@
 ;; Every row are aligned on 16 bytes; so, every row takes sizeof(float)*⟦cols⟧⁴ bytes.
 ;; Element at row /i/, column /j/ of the matrix is stored at location /addr + sizeof(float)*(i*⟦cols⟧⁴ + j)/
 ;; The Matrix struct is passed to and return from functions via registers.
+;; On error, a matrix with field /addr/ equal to zero is returned
 extern aligned_alloc, bzero, free
 	
 global matrixNew

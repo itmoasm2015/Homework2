@@ -197,6 +197,43 @@ void test6() {
     cout << "OK\n";
 }
 
+void test7() {
+    cout << "Test7 starts ... ";
+    for (int t = 0; t < 100; t++) {
+        int n1 = rand() % 1000 + 1;
+        int m1 = rand() % 1000 + 1;
+        int n2 = rand() % 1000 + 1;
+        int m2 = rand() % 1000 + 1;
+        Matrix a = matrixNew(n1, m1);
+        Matrix b = matrixNew(n2, m2);
+        assert(n1 == matrixGetRows(a));
+        assert(m1 == matrixGetCols(a));
+        assert(n2 == matrixGetRows(b));
+        assert(m2 == matrixGetCols(b));
+        for (int i = 0; i < n1; i++) {
+            for (int j = 0; j < m1; j++) {
+                float x = genFloat();
+                matrixSet(a, i, j, x);
+                aa[i][j] = x;
+            }
+        }
+        for (int i = 0; i < n2; i++) {
+            for (int j = 0; j < m2; j++) {
+                float x = genFloat();
+                matrixSet(b, i, j, x);
+                bb[i][j] = x;
+            }
+        }
+        Matrix c = matrixMul(a, b);
+        Matrix d = matrixAdd(a, b);
+        assert(c == NULL);
+        assert(d == NULL);
+        matrixDelete(a);
+        matrixDelete(b);
+    }
+    cout << "OK\n";
+}
+
 int main() {
     srand(time(NULL));
     test1();
@@ -205,6 +242,7 @@ int main() {
     test4();
     test5();
     test6();
+    test7();
     return 0;
 }
 

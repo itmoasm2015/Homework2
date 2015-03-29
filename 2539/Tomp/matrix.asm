@@ -1,4 +1,4 @@
-extern malloc
+extern aligned_alloc
 extern free
 
 %macro getAligned 1
@@ -11,9 +11,8 @@ extern free
 
 global matrixNew
 matrixNew:
-        push rbp
-        mov rbp, rsp
         push rbx
+        push r12
 
         mov eax, edi ; rows
         mov ebx, eax
@@ -25,17 +24,16 @@ matrixNew:
         mul edx
         shl rdx, 32
         mov edx, eax
-        lea rdx, [rdx + 3 * rdx + 8]
-        push rcx
-        mov rdi, rdx
-        call malloc
-        pop rcx
+        lea rsi, [rdx + 3 * rdx + 16]
+        mov r12, rcx
+        mov rdi, 16
+        call aligned_alloc
         mov [rax], ebx
+        mov rcx, r12
         mov [rax + 4], ecx
 
+        pop r12
         pop rbx
-        mov rsp, rbp
-        pop rbp
         ret
 
 global matrixDelete
@@ -57,7 +55,7 @@ matrixGetCols:
         ; rdx - column
         getCols(ecx, rdi)
         getAligned ecx
-        lea rdi, [rdi + 4 * rdx + 8]
+        lea rdi, [rdi + 4 * rdx + 16]
         mov eax, esi
         mul ecx
         shl rdx, 32
@@ -77,4 +75,45 @@ matrixSet:
         movss dword [rdi], xmm0
         ret
 
+global matrixScale
+matrixScale:
+        push rbx
+        push r12
+        push r13
+
+        mov rbx, rdi
+        getRows(edi, rbx)
+        getCols(esi, rbx)
+        mov r12, rdi
+        mov r13, rsi
+        call matrixNew
+        mov rdi, rax
+        mov rax, r12
+        mov rcx, r13
+        getAligned eax
+        getAligned ecx
+        mul ecx
+        shl rdx, 32
+        mov edx, eax
+        shr rdx, ALIGNMENT_LOG
+        mov rax, rdi
+
+        movlhps xmm0, xmm0
+        haddps xmm0, xmm0
+.loop:
+        add rdi, 16
+        add rbx, 16
+        movaps xmm1, [rbx]
+        mulps xmm1, xmm0
+        movaps [rdi], xmm1
+        dec rdx
+        test rdx, rdx
+        jg .loop
+
+        pop r13
+        pop r12
+        pop rbx
+        ret
+
 ALIGNMENT equ 4
+ALIGNMENT_LOG equ 2

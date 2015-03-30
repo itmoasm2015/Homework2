@@ -134,7 +134,7 @@ matrixSet:
     add     rsi, rdx
     imul    rsi, 4
     add     rsi, [rdi + data]
-    movups  [rsi], xmm0
+    movss  [rsi], xmm0
     ret
 
 ;;Matrix matrixCopy(Matrix matrix)
@@ -308,8 +308,8 @@ matrixTranspose:
 ;;Matrix matrixMul(Matrix a, Matrix b);
 ;;
 ; Parameters:
-;   1) RDI - matrix a [N x M] address 
-;   2) RSI - matrix b [M x K] address
+;   1) RDI - matrix a[N x M] address 
+;   2) RSI - matrix b[M x K] address
 ; Returns:
 ;   Address of matrix c[N x K] = a * b
 matrixMul:
@@ -322,7 +322,7 @@ matrixMul:
     push    rdi              ;save rdi (a)
     mov     rdi, rsi         ;1-st arg (b)
     call    matrixTranspose
-    mov     rsi, rax         ;rsi = b^T [K x M]
+    mov     rsi, rax         ;rsi = b^T[K x M]
     pop     rdi
 
     ;create room for result
@@ -356,12 +356,14 @@ matrixMul:
 .loop_for_j:
     mov     r12, r11 ;r12 = i
     imul    r12, r9  ;r12 = i * M
-    add     r12, rdi ;r12 += rdi
+    imul    r12, 4   ;r12 = i * M * sizeof(float)
+    add     r12, rdi ;r12 = rdi + i * M * sizeof(float)
                      ;r12 - start of i-th row
 
     mov     r14, r13 ;r14 = j
     imul    r14, r10 ;r14 = j * K
-    add     r14, rsi ;r14 = rsi + j * K
+    imul    r14, 4   ;r14 = j * K * sizeof(float)
+    add     r14, rsi ;r14 = rsi + j * K * sizeof(float)
                      ;r14 - start of j-th row in b^T (and j-th column in b)
 
     xor     rcx, rcx    ;iterator of one line
@@ -373,14 +375,6 @@ matrixMul:
     haddps  xmm1, xmm1  ;A*E+B*F : C*G+D*H : A*E+B*F : C*G+D*H 
     haddps  xmm1, xmm1  ;A*E+B*F+C*G+D*H : ... : ... : ...
     addss   xmm0, xmm1  ;add to result
-
-    ;temp debug
-    push    rdx
-    push    rax
-    movss   [rdx], xmm0
-    mov     rax, [rdx]
-    pop     rax
-    pop     rdx
 
     add     r12, 16     ;move to next 4 floats in i-th row of a[i][...]
     add     r14, 16     ;move to next 4 floats in j-th column of b[...][j]
@@ -404,7 +398,7 @@ matrixMul:
     pop     r13
     pop     r12
 
-    ;result is in rax already
+    ;c[N x K] address is in rax already
     ret
 
 .incorrect:

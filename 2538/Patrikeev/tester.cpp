@@ -71,7 +71,8 @@ int main() {
     printMatrix(b);
 
     Matrix c = matrixMul(a, b);
-    cout << c << endl;
+    cout << matrixGetRows(c) << endl;
+    cout << matrixGetCols(c) << endl;
     printMatrix(c);
     
     //matrixDelete(c);

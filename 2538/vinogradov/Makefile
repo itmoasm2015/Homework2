@@ -1,7 +1,10 @@
-all: asm test
+ar: asm
+	ar rcs libhw.a matrix.o
+
+all: asm test.o
 	g++ -m64 test.o matrix.o -o test
 
-test: test.cpp include/matrix.h
+test.o: test.cpp include/matrix.h
 	g++ --std=c++11 test.cpp -m64 -g -c -o test.o
 
 asm: matrix.asm

@@ -1,22 +1,31 @@
+GCC = gcc
+CPP = g++
+ASM = yasm
+CPP_FLAGS = -Wall -g -L. -I../../include
+GCC_FLAGS = -Wall -g -m64 -Wextra -std=c99 -m64 -L. -I../../include
+C_FLAGS = -L. -I../../include
 ASM_FLAGS = -g dwarf2 -f elf64 
-CXX_FLAGS = -m64 -L. -g -I../../include
 
-all: test
+all: tester
 
-clean:
-	rm -f libhw.a
-	rm -f libhw.o
-	rm -f test.o
-	rm -f test
+tester: libhw.a tester.o
+	$(CPP) tester.o -o tester $(CPP_FLAGS) -lhw
 
-test: libhw.a test.o
-	g++ -o test $(CXX_FLAGS) test.o -lhw
+tester.o: tester.cpp
+	$(CPP) tester.cpp -c -o tester.o $(CPP_FLAGS)
 
-test.o: test.cpp
-	g++ -o test.o $(CXX_FLAGS) -c test.cpp
+c_impl.o: c_impl.c
+	$(GCC) -std=c99 $(C_FLAGS) -c c_impl.c -o c_impl.o
 
 libhw.a: libhw.o
 	ar rcs libhw.a libhw.o
 
-libhw.o: matrix.asm
-	yasm -o libhw.o $(ASM_FLAGS) matrix.asm
+libhw.o: asm_impl.asm
+	$(ASM) -o libhw.o $(ASM_FLAGS) asm_impl.asm
+
+clean:
+	rm -f libhw.a
+	rm -f libhw.o
+	rm -f tester.o
+	rm -f c_impl.o
+	rm -f tester

@@ -45,40 +45,30 @@ void printMatrix(Matrix m) {
     }
 }
 
+void testScale() {
+    int n = 10;
+    int m = 15;
+    Matrix a = matrixNew(n, m);
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++) {
+            matrixSet(a, i, j, i);
+        }
+    }
+    printMatrix(a);
+
+    Matrix b = matrixScale(a, 10);
+    printMatrix(b);
+    
+    matrixDelete(a);
+    matrixDelete(b);
+}
+
 int main() {    
 
     int n = 3;
     int m = 3;
     
-    Matrix a = matrixNew(n, m);
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < m; j++) {
-            matrixSet(a, i, j, i + j);
-        }
-    }
-    printMatrix(a);
-
-    Matrix b = matrixNew(n, m);
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < m; j++) {
-            if (i == j) {
-                matrixSet(b, i, j, 1);
-            } else {
-                matrixSet(b, i, j, 0);
-            }
-        }
-    }
-    printMatrix(b);
-
-    Matrix c = matrixMul(a, b);
-    cout << matrixGetRows(c) << endl;
-    cout << matrixGetCols(c) << endl;
-    printMatrix(c);
-    
-    //matrixDelete(c);
-
-    matrixDelete(a);
-    matrixDelete(b);
+    testScale();
 
     return 0;
 }

@@ -1,10 +1,7 @@
 ;; In this file, for a value x, notation ⟦x⟧⁴ stands for x rounded up to the nearest multiple of 4. For example, ⟦5⟧⁴=8, ⟦12⟧⁴=12.
-;; Matrix is defined as struct { float* addr; unsigned rows, cols; }
-;; Field /addr/ points to a dynamically allocated block of memory of size sizeof(float)*rows*⟦cols⟧⁴. Addr is aligned on 16 bytes.
-;; Every row are aligned on 16 bytes; so, every row takes sizeof(float)*⟦cols⟧⁴ bytes.
-;; Element at row /i/, column /j/ of the matrix is stored at location /addr + sizeof(float)*(i*⟦cols⟧⁴ + j)/
-;; The Matrix struct is passed to and return from functions via registers.
-;; On error, a matrix with field /addr/ equal to zero is returned
+;; Matrix is stored as a struct { unsigned rows, cols; char padding[8]; float values[rows][⟦cols⟧⁴]; }
+;; Matrix location is always aligned on 16 bytes.
+;; Every row is aligned on 16 bytes; so, every row takes sizeof(float)*⟦cols⟧⁴ bytes.
 extern aligned_alloc, bzero, free
 	
 global matrixNew
@@ -16,6 +13,14 @@ global matrixSet
 global matrixScale
 global matrixAdd
 global matrixMul
+
+;; matrix representation
+struc matrix
+	m_rows resd 1
+	m_cols resd 1
+	m_pad  resb 8
+	m_vals resb 0
+endstruc
 
 ;; round %1 up to the nearest multiple of %2. %2 must be a power of 2
 %macro roundup 2
@@ -50,10 +55,12 @@ global matrixMul
 ;; input: rdi=rows, rsi=cols
 ;; output: rax=addr, rdx=cols:rows
 matrixNew:	
-	;; save dimensions to stack to return them in the end
+	;; save calle-save registers
+	push rbx
+	
+	;; remember dimensions
 	push rdi
-	mov [rsp+4], esi
-	;; [rsp] = cols:rows
+	push rsi
 
 	;; calculate number of bytes needed for the matrix
 	mov rax, rdi
@@ -61,103 +68,112 @@ matrixNew:
 	mul rsi
 	mov rsi, rax
 	shl rsi, 4
-
-	;; save the number of bytes to stack, because calling aligned_alloc will destroy the register
-	push rsi
+	mov rbx, rsi
+	add rsi, 16
 
 	;; allocate memory for the matrix
 	alloc16
 
-	;; fill the matrix with zeros
-	mov rdi, rax
+	;; put rows and cols
 	pop rsi
+	pop rdi
+	mov [rax+m_rows], edi
+	mov [rax+m_cols], esi
+
+	;; fill the matrix with zeros
+	lea rdi, [rax+m_vals]
+	mov rsi, rbx
+	mov rbx, rax
 	call bzero
 
-	;; get dimensions from stack to return them
-	pop rdx
+	mov rax, rbx
+
+	;; restore calle-save registers
+	pop rbx
 
 	ret
 
-;; void matrixDelete(Matrix {addr,rows,cols})
+;; void matrixDelete(Matrix matrix)
 ;; Deallocates memory for the matrix
-;; input: rdi=addr, rsi=cols:rows
+;; input: rdi=matrix
 matrixDelete:
 	jmp free
 
-;; unsigned int matrixGetRows(Matrix {addr,rows,cols});
+;; unsigned int matrixGetRows(Matrix matrix);
 ;; Returns number of rows
-;; input: rdi=addr, rsi=cols:rows
+;; input: rdi=matrix
 ;; output: rax=rows
 matrixGetRows:
-	mov eax, esi
+	mov eax, [rdi+m_rows]
 	ret
 
-;; unsigned int matrixGetRows(Matrix {addr,rows,cols});
+;; unsigned int matrixGetRows(Matrix matrix);
 ;; Returns number of columns
-;; input: rdi=addr, rsi=cols:rows
+;; input: rdi=matrix
 ;; output: rax=cols
 matrixGetCols:
-	mov rax, rsi
-	shr rax, 32
+	mov eax, [rdi+m_cols]
 	ret
 
 ;; Calculates offset of the element at the given position
-;; input: rsi=rows:cols, rdx=row, rcx=col
-;; output: rcx = row*⟦cols⟧⁴ + col
+;; input: rdi=matrix, rsi=row, rdx=col
+;; output: rsi = row*⟦cols⟧⁴ + col
 %macro calculate_offset 0
-	shr rsi, 32
-	upto4 rsi
-	mov eax, edx
-	mul rsi
-	add rcx, rax
+	mov ecx, [rdi+m_cols]
+	upto4 rcx
+	mov eax, esi
+	mov rsi, rdx
+	mul rcx
+	add rsi, rax
 %endmacro
 
-;; float matrixGet(Matrix e{addr,rows,cols}, unsigned int row, unsigned int col);
+;; float matrixGet(Matrix matrix, unsigned int row, unsigned int col);
 ;; Returns element of the matrix at the given position
-;; input: rdi=addr, rsi=cols:rows, rdx=row, rcx=col
+;; input: rdi=matrix, rsi=row, rdx=col
 ;; output: xmm0=the element
 matrixGet:
 	calculate_offset
-	movss xmm0, [rdi+4*rcx]
+	movss xmm0, [rdi+m_vals+4*rsi]
 	ret
 
-;; void matrixGet(Matrix e{addr,rows,cols}, unsigned int row, unsigned int col, float value);
+;; void matrixGet(Matrix matrix, unsigned int row, unsigned int col, float value);
 ;; Sets element of the matrix at the given position to the given value
-;; input: rdi=addr, rsi=cols:rows, rdx=row, rcx=col, xmm0=value
+;; input: rdi=matrix, rsi=row, rdx=col, xmm0=value
 matrixSet:
 	calculate_offset
-	movss [rdi+4*rcx], xmm0
+	movss [rdi+m_vals+4*rsi], xmm0
 	ret
 
 
 ;; Allocates a new matrix with given number of rows and cols and sets rbx to the offset of the last 4-element block in such matrix
 ;; input: rsi = cols:rows
-;; output: rax = new_addr, rbx = rows*⟦cols⟧⁴-4
+;; output: rax = matrix, rbx = rows*⟦cols⟧⁴-4
 %macro allocate_and_move_to_end 0
+	push rsi
 	mov eax, esi
 	shr rsi, 32
 	upto4 rsi
 	mul rsi
 	lea rbx, [rax-4]
-	lea rsi, [rax*4]
-
+	lea rsi, [matrix_size+rax*4]
 	alloc16
+	pop qword [rax]
 %endmacro
 	
-;; Matrix{new_addr,rows,cols} matrixScale(Matrix matrix{addr,rows,cols}, float k);
+;; Matrix matrixScale(Matrix matrix, float k);
 ;; Multiplies every element of the matrix by k
-;; input: rdi=addr, rsi=cols:rows, xmm0=0:0:0:k
-;; output: rax=new_addr, rdx=cols:rows
+;; input: rdi=matrix, xmm0=0:0:0:k
+;; output: rax=result_matrix
 matrixScale:	
+	;; save calle-save registers
 	push rbx
 	push r12
 
-	;; save dimensions to return them in the end
-	push rsi
-
-	;; remember input matrix addr
+	;; remember input matrix
 	mov r12, rdi
 
+	;; allocate new matrix
+	mov rsi, [rdi]
 	allocate_and_move_to_end
 
 	;; clone k:
@@ -167,100 +183,91 @@ matrixScale:
 	
 	;; multiply all elements by k and write to the new matrix
 .loop:
-	movups xmm1, [r12+4*rbx]
+	movups xmm1, [r12 + m_vals + 4*rbx]
 	mulps xmm1, xmm0
-	movups [rax+4*rbx], xmm1
+	movups [rax + m_vals + 4*rbx], xmm1
 
 	sub rbx, 4		; move to the previous 4-element block
 	jae .loop
 .end:
-	pop rdx		    ; get dimensions from stack to return them
-
+	;; restore calle-save registers
 	pop r12
 	pop rbx
 
 	ret
 	
-;; Matrix{addr,rows,cols} matrixAdd(Matrix {addr1,rows1,cols1, Matrix {addr2,rows2,cols2});
+;; Matrix matrixAdd(Matrix matrix1, Matrix matrix2);
 ;; Adds matrices
-;; input: rdi=addr1, rsi=cols1:rows1, rdx=addr2, rcx=cols2:rows2
-;; output: rax=addr, rdx=cols:rows
+;; input: rdi=matrix1, rsi=matrix2
+;; output: rax=matrix
 matrixAdd:	
 	;; check dimensions
-	cmp rsi, rcx
+	mov rax, [rdi]
+	cmp [rsi], rax
 	je .dims_are_ok
 .dims_are_bad:
 	;; return zero
 	xor rax, rax
 	ret
 .dims_are_ok:	
+	;; save calle-save registers
 	push rbx
 	push r12
 	push r13
 
-	;; save dimensions to stack to return them in the end
-	push rsi
-
-	;; remember the addrs
+	;; remember input matrices
 	mov r12, rdi
-	mov r13, rdx
+	mov r13, rsi
 
+	mov rsi, [rsi]
 	allocate_and_move_to_end
 	
 	;; add all elements and write to the new matrix
 .loop:
-	movups xmm0, [r12+4*rbx]
-	addps xmm0, [r13+4*rbx]
-	movaps [rax+4*rbx], xmm0
+	movups xmm0, [r12 + m_vals + 4*rbx]
+	addps xmm0, [r13 + m_vals + 4*rbx]
+	movaps [rax + m_vals + 4*rbx], xmm0
 
 	sub rbx, 4		; move to the prevous 4-element block
 	jae .loop
 .end:
-	;; get dimensions from the stack to return them
-	pop rdx
-
 	pop r13
 	pop r12
 	pop rbx
 
 	ret
 
-;; Matrix{addr,rows,cols} matrixMul(Matrix {addr1,rows1,cols1}, Matrix {addr2,rows2,cols2});
+;; Matrix matrixMul(Matrix matrix1, Matrix matrix2);
 ;; Multiplies matrices
-;; input: rdi=addr1, rsi=cols1:rows1, rdx=addr2, rcx=cols2:rows2
-;; output: rax=addr, rdx=cols:rows
+;; input: rdi=matrix1, rsi=matrix2
+;; output: rax=matrix
 matrixMul:	
 	;; check that cols1==rows2:
-	mov rax, rsi
-	shr rax, 32
-	cmp eax, ecx
+	mov eax, [rsi+m_rows]
+	cmp [rdi+m_cols], eax
 	je .dims_are_ok
 .dims_are_bad:
 	;; return zero
 	xor rax, rax
 	ret
 .dims_are_ok:	
+	;; save calle-save registers
 	push rbx
 	push r12
 	push r13
 	push r14
 
-	;; save result dimensions to stack to return them in the end
-	push rcx
-	mov [rsp], esi
-
-	;; remember the addrs and cols2
+	;; remember the input matrices and number of columns in the second matrix
 	mov r12, rdi
 	mov r13, rdx
-	mov rbx, rcx
+	mov ebx, [rdx+m_cols]
 
 	;; Before calculating the product we calculate transposition of the second matrix
 .allocate_transposition:
 	;; calculate number of bytes needed for the transposed matrix
-	mov eax, ecx
+	mov eax, [rsi+m_rows]
 	upto4 rax
-	mov r8, rcx
-	shr r8, 32
+	mov r8d, [rsi+m_cols]
 	mul r8
 	lea rsi, [rax*4]
 
@@ -270,11 +277,10 @@ matrixMul:
 	;; Calculate transposition of the second matrix:
 .transpose:
 	;; get number of columns in the original matrix
-	mov rdx, rbx
-	shr rdx, 32
+	mov edx, [r13+m_cols]
 
-	mov ecx, ebx		; set outer loop counter to the number of rows in the original numbers
-	mov rsi, r13		; get addr of the original matrix
+	mov ecx, [r13+m_rows] 	; set outer loop counter to the number of rows in the original matrix
+	lea rsi, [r13+m_vals]	; get addr of the original matrix
 
 	;; get actual width of the tranposed matrix
 	mov r11, rcx
@@ -282,7 +288,7 @@ matrixMul:
 
 	xor r10, r10		; start from the first column of the transposed matrix
 .transpose_row:
-	mov r8, rdx		; reset inner loop counter to the number of columns in the original matrix
+	mov r8d, [r13+m_cols] 	; reset inner loop counter to the number of columns in the original matrix
 	lea rdi, [rax+r10]	; move to the current column of the first row of the transposed matrx
 .transpose_cell:
 	movsd			; copy the element and move to the next cell of the original matrix
@@ -299,30 +305,35 @@ matrixMul:
 	mov r13, rax
 
 .allocate_result:
-	;; calculate number of bytes needed for the product of matrices
-	mov esi, [rsp+4]
+	;; calculate number of bytes needed for the product matrix
+	mov esi, ebx
 	upto4 rsi
-	mov eax, [rsp]
+	mov eax, [r12+m_rows]
 	mul rsi
-	lea rsi, [rax*4]
+	lea rsi, [matrix_size + rax*4]
 
 	;; allocate memory for the product
 	alloc16
+
+	;; set rows and cols
+	mov ecx, [r12+m_rows]
+	mov [rax+m_rows], ecx
+	mov [rax+m_cols], ebx
 	
 	;; save the address for the product in r14
-	mov r14, rax
+	lea r14, [rax+m_vals]
 	
-.calculate:
-	mov r8d, [rsp]		; reset .loop1 counter to the number of rows in the result
+.calculate_product:
+	mov r8d, [rax+m_rows]		; reset .loop1 counter to the number of rows in the result
 
 	;; get actual width the first matrix (= width of the transposed second matrix)
-	mov ebx, ebx
+	mov ebx, [r12+m_cols]
 	upto4 rbx		; rbx = ⟦cols1⟧
 
 	;; for each row of the first matrix:
 .loop1:				
 	mov rdi, r13		; move to the first row of second matrix
-	mov r9d, [rsp+4]	; reset .loop2 counter to the number of columns in the result matrix
+	mov r9d, [rax+m_cols]	; reset .loop2 counter to the number of columns in the result matrix
 
 	;; for each row of the transposed second matrix:
 .loop2: 
@@ -332,8 +343,8 @@ matrixMul:
 	;; for each 4-element block:
 .loop3:
 	;; multiply elements of the block pointwise
-	movaps xmm1, [r12+4*r10]
-	mulps xmm1, [rdi+4*r10]
+	movaps xmm1, [r12 + m_vals + 4*r10]
+	mulps xmm1, [rdi + 4*r10]
 	;; add the product to the accumulator pointwise
 	addps xmm0, xmm1
 
@@ -343,24 +354,22 @@ matrixMul:
 	;; get sum of the products
 	haddps xmm0, xmm0
 	haddps xmm0, xmm0
+
 	;; store the sum into the cell of the result matrix
-	movss [rax], xmm0
+	movss [r14], xmm0
 
 	lea rdi, [rdi+4*rbx]	; move to the next row of the transposed second matrix
-	add rax, 4		; move to the next cell of the result matrix
+	add r14, 4		; move to the next cell of the result matrix
 	sub r9, 1
 	jnz .loop2
 .loop1_end:
 	lea r12, [r12+4*rbx]	; move to the next row of the first matrix
 	
-	upto16 rax		; move to the next row of the result matrix (see usage of 'upto16' in transposing for a more detailed explanation)
+	upto16 r14		; move to the next row of the result matrix (jumping over the unused tail of the row; the same trick with 'upto16' is used in transposing)
 	sub r8, 1
 	jnz .loop1
 
 .end:
-	mov rax, r14		; get the result matrix addr to return it
-	pop rdx			; get the result dimensions to return them
-
 	pop r14
 	pop r13
 	pop r12

@@ -28,23 +28,47 @@ typedef unsigned int uint;
     }
     return true;
 }
+*/
 
 void printMatrix(Matrix m) {
+    if (m == 0) {
+        cout << "Empty matrix" << endl;
+        return;
+    }
     uint rows = matrixGetRows(m); 
     uint cols = matrixGetCols(m); 
     for (uint i = 0; i < rows; i++) {
         for (uint j = 0; j < cols; j++) {
-            cout << matrixGet(m, i, j) << ' ';
+            cout << (float) matrixGet(m, i, j) << ' ';
         }
         cout << endl;
     }
-}*/
+}
+
+void testScale() {
+    int n = 10;
+    int m = 15;
+    Matrix a = matrixNew(n, m);
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++) {
+            matrixSet(a, i, j, i);
+        }
+    }
+    printMatrix(a);
+
+    Matrix b = matrixScale(a, 10);
+    printMatrix(b);
+    
+    matrixDelete(a);
+    matrixDelete(b);
+}
 
 int main() {    
 
-    Matrix a = matrixNew(10, 20);
-    cout << a << endl;
-    //matrixDelete(a);
+    int n = 3;
+    int m = 3;
+    
+    testScale();
 
     return 0;
 }

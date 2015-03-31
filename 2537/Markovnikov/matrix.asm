@@ -23,11 +23,11 @@ section .text
 	%endmacro
 
 	;; Matrix matrixNew(unsigned int rows, unsigned int columns)
-	;; Takes:		RDI - number of rows
-	;;					RSI - number of columns
+	;; Takes:   RDI - number of rows
+	;;			RSI - number of columns
 	;; Returns:	RAX - pointer to the matrix
 	matrixNew:
-		push rbx						; Save registers
+		push rbx					; Save registers
 		push rdi
 		push rsi	
 		mov rbx, rsi
@@ -37,18 +37,18 @@ section .text
 		imul rdi, 4					; Every cell's size is size of float
 		push rdi
 		call malloc					; Malloc takes rdi and returns to rax
-		pop rdi							; Return registers
+		pop rdi						; Return registers
 		pop rsi
 		pop rdi
-		mov [rax], edi			; Put rows number
-		mov [rax + 4], esi	; Put colomns number after
-		fillWithValue 0			; Fill the matrix with zeroes
+		mov [rax], edi			    ; Put rows number
+		mov [rax + 4], esi	        ; Put colomns number after
+		fillWithValue 0			    ; Fill the matrix with zeroes
 		pop rbx
 		ret
 
 	;; unsigned int matrixGetRows(Matrix matrix)
-	;; Takes:		RDI - pointer to the matrix
-	;; Returns:	RAX - number of rows in the matrix
+	;; Takes:   RDI - pointer to the matrix
+	;; Returns: RAX - number of rows in the matrix
 	matrixGetRows:
 		mov rax, [rdi]
 		ret
@@ -61,9 +61,45 @@ section .text
 		ret
 	
 	;; void matrixDelete(Matrix matrix)
-	;; Takes:	RDI - pointer to the matrix
+	;; Takes:   RDI - pointer to the matrix
 	matrixDelete:
-		push rdi
 		call free
-		pop rdi
 		ret
+
+    ;; float matrixGet(Matrix matrix, unsigned int row, unsigned int col)
+    ;; Takes:   RDI - pointer to the matrix
+    ;;          RSI - row
+    ;;          RDX - col
+    ;; Returns: XMM0 - number in the cell [rsi][rdx]
+    matrixGet:
+        mov rax, 0
+        mov eax, esi
+        push rcx                    ; Save rcx because of convension
+        mov rcx, 0
+        mov ecx, [rdi + 4]
+        imul eax, ecx
+
+        pop rcx
+
+        add eax, edx                ; eax = row * rowsCount + col = place in our array
+        movss xmm0, [rdi + 4 * (rax + 2)]
+        ret
+    
+    ;; void matrixSet(Matrix matrix, unsigned int row, unsigned int col, float value)
+    ;; Takes:   RDI - pointer to the matrix
+    ;;          RSI - row
+    ;;          RDX - col
+    ;;          XMM0 - value to set
+    matrixSet:
+        mov rax, 0
+        mov eax, esi
+        push rcx
+        mov rcx, 0
+        mov ecx, [rdi + 4]
+        imul eax, ecx
+
+        pop rcx
+
+        add eax, edx                ; eax = row * rowsCount + col = place in our array
+        movss [rdi + 4 * (rax + 2)], xmm0
+        ret

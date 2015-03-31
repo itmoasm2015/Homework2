@@ -23,6 +23,13 @@ bool test_matrix_new() {
 	unsigned int n = get_random_int(1, 1000);
 	unsigned int m = get_random_int(1, 1000);
 	a = matrixNew(n, m);
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++)
+            if (fabs(matrixGet(a, i, j)) >= eps) {
+                matrixDelete(a);
+                return false;
+            }
+                
 	matrixDelete(a);
 	return true;
 }
@@ -43,8 +50,8 @@ bool test_matrix_set() {
     unsigned int n = get_random_int(1, 1000);
     unsigned int m = get_random_int(1, 1000);
     a = matrixNew(n, m);
-    for (int i = 1; i < n; i++)
-        for (int j = 1; j < m; j++) {
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++) {
             float value = get_random_int(1, 10000) / (1, 10000);
             matrixSet(a, i, j, value);
         }
@@ -70,8 +77,10 @@ bool test_matrix_get() {
  //   printMatrix(test, n, m);
     for (int i = 0; i < n; i++)
         for (int j = 0; j < m; j++)
-            if (fabs(test[i][j] - matrixGet(a, i, j)) >= eps)
+            if (fabs(test[i][j] - matrixGet(a, i, j)) >= eps) {
+                matrixDelete(a);
                 return false;
+            }
     matrixDelete(a);
     return true;
 }

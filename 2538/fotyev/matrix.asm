@@ -181,7 +181,7 @@ matrixNewFast:
         mov [ArgR + OFFSET_END], T2 ; end
 ;done
 .out_of_memory:
-RESTOREREGS4
+	RESTOREREGS4
 	ret
 
 	
@@ -251,11 +251,9 @@ matrixScale:
 	lea T1, [R1 + OFFSET_DATA] ; void * start
 	mov T2, [R1 + OFFSET_END] ; void * end
 	lea Arg1, [ArgR + OFFSET_DATA] ; void * out
+	
 
-        
-
-
-	; broadcast multiplier into ymm15
+; broadcast multiplier into ymm15
         movss [rsp-4], xmm0
 	vzeroall
         vbroadcastss ymm15, [rsp-4]
@@ -288,7 +286,6 @@ matrixScale:
         
 %undef REPEAT_15
 
-
         mov T1, Arg6 ; start += 8 * 15
         add Arg6, 8*4*15
         add Arg1, 8*4*15 ; out += 8 * 15
@@ -304,13 +301,11 @@ matrixScale:
 %undef MUL_SCALAR
 %undef STORE
 
-        ; start += 8, out += 8
-	add T1, 8*4 ; 256 bit
+	
+	add T1, 8*4 ; start += 8, out += 8
 	add Arg1, 8*4
 	cmp T1, T2 ; while(start != end)
 	jne .mul_loop
-	
-
 
 	RESTOREREGS2
 	ret
@@ -388,7 +383,7 @@ matrixAdd:
         jb .unrolled_add_loop
 
 .add_loop:
-        ; *Arg1 = *T1 + *Arg2
+; *Arg1 = *T1 + *Arg2
         
         vmovaps ymm0, [T1]
 	vmovaps ymm1, [Arg2]
@@ -401,10 +396,8 @@ matrixAdd:
         add Arg1, 8*4 ; out += 8
         cmp T1, T2 ; }while(start1 != end1)
         jne .add_loop
-        
 
-
-RESTOREREGS2
+	RESTOREREGS2
         ret
 
 ; C = AB
@@ -426,12 +419,12 @@ matrixMul:
         test ArgR, ArgR
         jz .out_of_memory
         mov R3, ArgR
-        ; output matrix is now in R3
+; output matrix is now in R3
 
 ; ArgR = matrixTranspose(b)
         mov Arg1, R2
         call matrixTranspose
-        ; b is not needed anymore
+; b is not needed anymore
  
 	vzeroall
 
@@ -461,7 +454,7 @@ matrixMul:
 
         add Arg1, 8*4
         add Arg3, 8*4
-        cmp Arg3, Arg2
+        cmp Arg3, Arg2 ; while(col < (b^T).columns)
         jne .loop
 ; ymm3[0:31] = sum (ymm3)
 ; https://software.intel.com/en-us/forums/topic/281843
@@ -498,15 +491,15 @@ matrixMul:
         cmp Arg4, [R3 + OFFSET_END] ; while(out != out_end)
         jne .loop
 
-        ;done
+; done
         
-	; delete b^t
+; delete b^t
         mov Arg1, ArgR
         call matrixDelete
         
         mov ArgR, R3
 .out_of_memory:
-RESTOREREGS4
+	RESTOREREGS4
         ret
         
 
@@ -532,7 +525,7 @@ matrixTranspose:
         lea Arg3, [Arg1 + 4 * R2] ; row_end_t
 
 .loop:
-        ; copy from row to column
+; copy from row to column
         mov dword R4D, [T1]
         add T1, 4 ; column++
         mov dword [Arg2], R4D
@@ -549,7 +542,7 @@ matrixTranspose:
         cmp Arg3, Arg1 ; while(column_t != num_rows)
         jne .loop
 ; done
-RESTOREREGS4
+	RESTOREREGS4
         ret
         
         

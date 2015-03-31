@@ -254,7 +254,7 @@ matrixSet:
 
 ;;; Matrix matrixScale(Matrix matrix, float k);
 matrixScale:
-	SAVEREGS2 ; although R2 is not used in this procedure, saving an even number of registers is required to align stack properly
+	SAVEREGS1
 	mov R1, Arg1
 	mov Arg1, [R1 + OFFSET_ROWS]
 	mov Arg2, [R1 + OFFSET_COLS]
@@ -321,7 +321,7 @@ matrixScale:
 	cmp T1, T2 ; while(start != end)
 	jne .mul_loop
 
-	RESTOREREGS2
+	RESTOREREGS1
 	ret
 	
 

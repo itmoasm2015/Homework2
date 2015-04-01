@@ -5,7 +5,7 @@
 #define TEST(name, expected, actual) {          \
     printf("[TEST] %s... ", name);              \
     if((actual) != (expected)) {                \
-        printf("FAILED: expected %d, but was %d\n", (expected), (actual)); \
+        printf("FAILED: expected %0.10f, but was %0.10f\n", (expected), (actual)); \
     } else {                                    \
         printf("OK\n");                         \
     }                                           \
@@ -17,6 +17,13 @@ int main()
 
     TEST("should return cols properly", 4, matrixGetCols(m));
     TEST("should return rows properly", 5, matrixGetRows(m));
+    TEST("initial values should be zeroes", 0, matrixGet(m, 1, 2));
+
+    matrixSet(m, 1, 2, 1.5);
+    matrixSet(m, 0, 3, 4.34);
+    TEST("should set value properly #1", 1.5, matrixGet(m, 1, 2));
+    TEST("should set value properly #2", (float) 4.34, matrixGet(m, 0, 3));
+
 
     matrixDelete(m);
     return 0;

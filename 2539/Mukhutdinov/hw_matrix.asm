@@ -34,7 +34,7 @@
 ;; round number up by 4
 %macro ROUND_4 1
               add   %1, 3
-              and   %1, -3
+              and   %1, -4
 %endmacro
 
 ;; CODE STARTS HERE ;;
@@ -79,7 +79,7 @@ matrixNew:
               mpush rax, r8, r9     ; save our data
               
               mov   rdi, 16
-              lea   rsi, [rax + matrix_size] ; 16 bytes in front of data for cols and rows
+              lea   rsi, [rax*4 + matrix_size] ; 16 bytes in front of data for cols and rows
               call  aligned_alloc
 
               test  rax, rax        ; Halt in case of allocation error
@@ -148,8 +148,30 @@ matrixGetCols:
 matrixGet:
               lea   rax, [rsi*4]
               mov   r8, [rdi]
-              mul   r8              ; Now byte offset of necessary row is written into RAX (row * sizeof(float) * matrix.rows)
-              movss xmm0, [rdx*4 + rax]
+              mul   r8              
+              lea   rax, [rax + rdi + matrix_size] ; Now address of necessary row beginning is written into RAX (matrix + 16 + row * sizeof(float) * matrix->rows)
+
+              movss xmm0, [rax + rdx*4]
               ret
+
+
+;; @cdecl64
+;; void matrixSet(Matrix matrix, unsigned int row, unsigned int col, float value);
+;;
+;; Sets matrix[rows][cols]
+;;
+;; @param RDI void* matrix -- matrix address
+;; @param RSI unsigned int row -- row index
+;; @param RDX unsigned int col -- col index
+;; @param XMM0 float value -- a value to set
+matrixSet:
+              lea   rax, [rsi*4]
+              mov   r8, [rdi]
+              mul   r8
+              lea   rax, [rax + rdi + matrix_size] ; Now address of necessary row beginning is written into RAX (matrix + 16 + row * sizeof(float) * matrix->rows)
+
+              movss [rax + rdx*4], xmm0 
+              ret
+
 
 

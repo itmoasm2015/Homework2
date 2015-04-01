@@ -24,6 +24,11 @@ int main()
     TEST("should set value properly #1", 1.5, matrixGet(m, 1, 2));
     TEST("should set value properly #2", (float) 4.34, matrixGet(m, 0, 3));
 
+    Matrix m2 = matrixScale(m, 2);
+    TEST("scale shouldn't change initial matrix", 1.5, matrixGet(m, 1, 2));
+    TEST("should matrixScale properly #1", (float) 3, matrixGet(m2, 1, 2));
+    TEST("should matrixScale properly #2", (float) 8.68, matrixGet(m2, 0, 3));
+
 
     matrixDelete(m);
     return 0;

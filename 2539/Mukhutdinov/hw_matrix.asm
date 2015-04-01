@@ -57,15 +57,15 @@ global matrixNew, matrixDelete, matrixGetRows, matrixGetCols, matrixGet, matrixS
 .data:       
               endstruc 
               
-;; @cdecl64
-;; Matrix matrixNew(unsigned int rows, unsigned int cols);
+;; Matrix matrixNewRaw(unsigned int rows, unsigned int cols);
 ;; 
-;; Allocates a new matrix of rows*cols size.
+;; Allocates a new matrix of rows*cols size, does not zeroing out the data.
 ;;
 ;; @param RDI unsigned int rows -- num of rows
 ;; @param RSI unsigned int cols -- num of cols
 ;; @return RAX void* -- pointer to matrix struct
-matrixNew:    
+;; @return RCX unsigned int -- size of matrix (align(rows) * align(cols))
+matrixNewRaw:    
               CDECL_ENTER 0, 0
               mov   r8, rdi         ; Save real rows
               mov   r9, rsi         ; and cols values
@@ -89,18 +89,28 @@ matrixNew:
 
               mov   [rax], r8       
               mov   [rax + matrix.cols], r9
-
-              cld                   ; Clear direction flag just in case
-              lea   rdi, [rax + matrix.data]
-
-              mov   rbx, rax        ; Save address in the beginning to zero out RAX
-              xor   rax, rax
-              rep   stosd           ; Fill data with zeroes
-              mov   rax, rbx        ; Restore address
 .return:      
               CDECL_RET
+            
+;; @cdecl64            
+;; Matrix matrixNew(unsigned int rows, unsigned int cols);
+;; 
+;; Allocates a new matrix of rows*cols size, filled with zeroes.
+;;
+;; @param RDI unsigned int rows -- num of rows
+;; @param RSI unsigned int cols -- num of cols
+;; @return RAX void* -- pointer to matrix struct
+matrixNew:
+              call  matrixNewRaw
+              lea   rdi, [rax + matrix.data]
 
+              mov   r8, rax          ; Save RAX because we need it to zero out data
+              xor   rax, rax
+              cld                    ; Clear direction flag just in case
 
+              rep   stosd
+              mov   rax, r8          ; Restore RAX
+              ret
 ;; @cdecl64
 ;; void matrixDelete(Matrix matrix);
 ;;
@@ -174,4 +184,37 @@ matrixSet:
               ret
 
 
+;; @cdecl64
+;; Matrix matrixScale(Matrix matrix, float value);
+;;
+;; Multiply every matrix element by value 
+;;
+;; @param RDI void* matrix -- matrix address
+;; @param XMM0 float value -- a value to Multiply
+;; @return RAX void* -- pointer to a scaled matrix
+matrixScale:
+              push rdi               ; Save input matrix address
+
+              mov    rsi, [rdi + matrix.cols] ; Pass arguments
+              mov    rdi, [rdi]               ; to matrixNewRaw
+              call   matrixNewRaw             ; RAX = matrix pointer, RCX - matrix scaled size
+
+              shufps xmm0, xmm0, 0   ; Spread the 0th element of xmm0 (it's passed value) all over the xmm0 ([a, b, c, d] -> [a, a, a, a])
+
+              pop    rdi                      ; Restore input matrix address
+              add    rdi, matrix.data         ; Set RDI to the beginning of input matrix
+              lea    rsi, [rax + matrix.data] ; Set RSI to the beginning of output matrix
+
+              shr    rcx, 2          ; Divide by 4 to use DEC instead of SUB
+.copy_loop:
+              movaps xmm1, [rdi]     ; Perform multiplication
+              mulps  xmm1, xmm0
+              movaps [rsi], xmm1
+
+              add    rdi, 16         ; and shift all the indices
+              add    rsi, 16
+              dec    rcx
+              jnz    .copy_loop
+
+              ret
 

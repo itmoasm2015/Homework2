@@ -1,7 +1,7 @@
-ar: matrix.o
+libhw.a: matrix.o
 	ar rcs libhw.a matrix.o
 
-all: matrix.o test.o
+test: matrix.o test.o
 	g++ -m64 test.o matrix.o -o test
 
 test.o: test.cpp

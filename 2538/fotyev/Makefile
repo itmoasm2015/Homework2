@@ -7,6 +7,16 @@ AOBJ:=$(ASRC:%.asm=obja/%.o)
 COBJ:=$(CSRC:%.c=objc/%.o)
 CXXOBJ:=$(CXXSRC:%.cpp=objcxx/%.o)
 
+OS:=$(shell uname)
+
+
+ifeq ($(OS), Darwin)
+YASM_FLAGS=-f macho64
+AOBJ+=obja/osx-wrapper.o
+else
+YASM_FLAGS=-f elf64 -g dwarf2
+endif
+
 .PHONY: all clean
 all: libhw.a 
 
@@ -23,7 +33,7 @@ objcxx/%.o: %.cpp objcxx
 	g++ -std=c++11 -c -m64 -g -O2 -o $@ $<
 
 obja/%.o: %.asm obja
-	yasm -f elf64 -g dwarf2 -o $@ $<
+	yasm $(YASM_FLAGS) -o $@ $<
 
 libhw.a: $(AOBJ)
 	ar rcs $@ $^

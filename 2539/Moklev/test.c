@@ -79,12 +79,14 @@ int testMul(int rows, int cols) {
 	
 	int result = 1;
 	
-	Matrix c = matrixMul(a, a);
-	if(c != 0) {
-		result = (rows == cols);
-		matrixDelete(c); // uh
-	}
+	//Matrix c = matrixMul(a, a);
+	//if(c != 0) {
+  	//	result = (rows == cols);
+	//	matrixDelete(c); // uh
+	//}
 	
+    Matrix c;
+
 	c = matrixMul(a, b);
 	if(c == 0)
 		result = 0;
@@ -130,33 +132,67 @@ int testZeroMul(int rows, int cols) {
 
 #define TEST(a) test++; if(!((a)(rows, cols))) printf("Test failed: %s(%d, %d)\n", #a, rows, cols); else success++;
 
+void print(Matrix a) 
+{
+    for (int i = 0; i < matrixGetRows(a); i++) {
+        for (int j = 0; j < matrixGetCols(a); j++) {
+            printf("%.2f ", matrixGet(a, i, j));
+        }
+        printf("\n");
+    }
+    printf("\n");
+}
+
 int main() {
 
-    Matrix a = matrixNew(8, 12);
-    for (int i = 0; i < matrixGetRows(a); i++) {
-        for (int j = 0; j < matrixGetCols(a); j++) {
-            matrixSet(a, i, j, i + j * matrixGetRows(a));
-            printf("%.2f ", matrixGet(a, i, j));
-        }
-        printf("\n");
-    }
+    //Matrix a = matrixNew(8, 12);
+    //for (int i = 0; i < matrixGetRows(a); i++) {
+    //    for (int j = 0; j < matrixGetCols(a); j++) {
+    //        matrixSet(a, i, j, i + j * matrixGetRows(a));
+    //        printf("%.2f ", matrixGet(a, i, j));
+    //    }
+    //    printf("\n");
+    //}
 
-    a = matrixTranspose(a);
-    for (int i = 0; i < matrixGetRows(a); i++) {
-        for (int j = 0; j < matrixGetCols(a); j++) {
-            printf("%.2f ", matrixGet(a, i, j));
-        }
-        printf("\n");
-    }
+    //a = matrixTranspose(a);
+    //for (int i = 0; i < matrixGetRows(a); i++) {
+    //    for (int j = 0; j < matrixGetCols(a); j++) {
+    //        printf("%.2f ", matrixGet(a, i, j));
+    //    }
+    //    printf("\n");
+    //}
 
-    return 0;
+    //Matrix a = randomMatrix(2, 2, 1);
+    //Matrix b = randomMatrix(2, 2, 2);
+    
+    //matrixSet(a, 0, 0, 2);
+    //matrixSet(a, 1, 0, 1);
+    //matrixSet(a, 0, 1, -1);
+    //matrixSet(a, 1, 1, 0);
+    //matrixSet(b, 0, 0, 0);
+   // matrixSet(b, 1, 0, 1);
+   // matrixSet(b, 0, 1, -1);
+   // matrixSet(b, 1, 1, 3);
+    
+    //Matrix c = matrixMul(a, b);
+
+    //print(a);
+    //print(b);
+    //print(c);
+
+    //testMul(16, 16);
+
+    //return 0;
+
+   
 	
 	int test = 0;
 	int success = 0;
 	
 	for(int rows = 1; rows <= 16; rows++) {
 		for(int cols = 1; cols <= 16; cols++) {
-			TEST(testCreation);
+			printf("lal %d %d\n", rows, cols);
+            TEST(testCreation);
 			TEST(testScale);
 			TEST(testAddition);
 			TEST(testMul);
@@ -173,10 +209,11 @@ int main() {
 	int huge_c[] = {1, 100000, 4, 16, 1024};
 	
 	for(int i = 0; i < 5; i++) {
-		Matrix a = randomMatrix(huge_a[i], huge_b[i], 1);
+		//printf("%d\n", i);
+        Matrix a = randomMatrix(huge_a[i], huge_b[i], 1);
 		Matrix b = randomMatrix(huge_b[i], huge_c[i], 2);
 		
-		//matrixDelete(matrixMul(a, b));
+		matrixDelete(matrixMul(a, b));
 		
 		matrixDelete(a);
 		matrixDelete(b);

@@ -124,8 +124,13 @@ RESTOREREGS4
 ;;; [ ... | offset(64bits) | data(returned) | ... ]
 ; void * memalign32(size_t size)
 memalign32:
-	add Arg1, 32
+	push rbp ; enter
+	mov rbp, rsp
+	
+        add Arg1, 32
+        and rsp, ~15 ; align the stack (substracts 0 or 8 bytes)
 	call malloc
+	
 	mov T1, ArgR ; save to calculate offset later
         test ArgR, ArgR
         jz .out_of_memory ; malloc returned 0
@@ -137,14 +142,23 @@ memalign32:
 	sub T2, T1 ; calculate offset
 	mov [ArgR - 8], T2 ; save offset
 .out_of_memory:
+	mov rsp, rbp ; leave
+	pop rbp
 	ret
 	
 ;;; void matrixDelete(Matrix matrix);
 matrixDelete:
         test Arg1, Arg1
         jz .dont_delete ; matrixDelete(NULL) shouldnt crash
+
+	push rbp ; enter
+	mov rbp, rsp
+	
 	sub Arg1, [Arg1 - 8]; subtract offset
+	and rsp, ~15 ; align the stack
         call free
+	mov rsp, rbp ; leave
+	pop rbp
 .dont_delete:
         ret
 
@@ -240,7 +254,7 @@ matrixSet:
 
 ;;; Matrix matrixScale(Matrix matrix, float k);
 matrixScale:
-	SAVEREGS2 ; although R2 is not used in this procedure, saving an even number of registers is required to align stack properly
+	SAVEREGS1
 	mov R1, Arg1
 	mov Arg1, [R1 + OFFSET_ROWS]
 	mov Arg2, [R1 + OFFSET_COLS]
@@ -307,7 +321,7 @@ matrixScale:
 	cmp T1, T2 ; while(start != end)
 	jne .mul_loop
 
-	RESTOREREGS2
+	RESTOREREGS1
 	ret
 	
 

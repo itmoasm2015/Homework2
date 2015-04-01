@@ -106,3 +106,55 @@ section .text
         add eax, edx                ; eax = row * rowsCount + col = place in our array
         movss [rdi + 4 * (rax + 2)], xmm0
         ret
+
+    ;; Matrix matrixAdd(Matrix a, Matrix b)
+    ;; Takes:   RDI - pointer to the matrix a
+    ;;          RSI - pointer to the matrix b
+    ;; Returns: RAX - ponter to (a + b)
+    matrixAdd:
+        push rdi                    ; Given matrices can not be changed
+        push rsi
+
+        mov rcx, 0
+        mov rdx, 0
+        mov ecx, [rdi]              ; Number of rows
+        mov edx, [rdi + 4]          ; Number of columns
+        
+        mov rdi, rcx
+        mov rsi, rdx
+        call matrixNew              ; Put new matrix to rax
+        mov rcx, rdi
+        mov rdx, rsi
+        pop rsi
+        pop rdi
+
+        push r10
+
+        mov r10, rcx
+        imul r10, rdx
+        mov rcx, 0
+        ; for (int i = 0; i < n * m; i += 4)
+        .loop:
+            add rcx, 4
+            cmp rcx, r10
+            jnle .loopFinish
+            movups xmm0, [rdi + 4 * (rcx - 2)]
+            movups xmm1, [rsi + 4 * (rcx - 2)]
+            addps xmm0, xmm1
+            movups [rax + 4 * (rcx - 2)], xmm0
+            jmp .loop 
+        .loopFinish:
+            sub rcx, 4
+            cmp rcx, r10
+            jz .break
+            movss xmm0, [rdi + 4 * (rcx + 2)]
+            addss xmm0, [rsi + 4 * (rcx + 2)]
+            movss [rax + 4 * (rcx + 2)], xmm0
+            inc rcx
+            add rcx, 4
+            jmp .loopFinish
+        .break:
+        pop r10
+        ret
+
+

@@ -57,7 +57,9 @@ Matrix matrixAdd(Matrix a, Matrix b);
  */
 Matrix matrixMul(Matrix a, Matrix b);
 
+Matrix matrixCopy(Matrix a);
 
+Matrix matrixTranspose(Matrix a);
 
 #ifdef __cplusplus
 }

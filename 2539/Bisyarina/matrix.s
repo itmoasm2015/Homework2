@@ -15,6 +15,8 @@ global matrixAdd
 global matrixMul
 
 %macro roundTo4 1
+        push rax
+        push rdx
         dec %1
         mov rax, %1
         
@@ -26,6 +28,8 @@ global matrixMul
         
         sub %1, rdx
         add %1, 4
+        pop rdx
+        pop rax
 %endmacro
 
 %macro countSize 3
@@ -119,6 +123,7 @@ matrixGet:
         mul rsi
         add rax, r8
 
+        add rdi, 16
         movss xmm0, [rdi + rax * 4]
         ret
         
@@ -134,10 +139,81 @@ matrixSet:
         mul rsi
         add rax, r8
 ;; Set value
+        add rdi, 16
         movss [rdi + rax * 4], xmm0
         ret
         
+
+
+cloneMatrix:
+        push rdi
+
+        mov rsi, [rdi + 8]
+        mov rcx, [rdi]
+        mov rdi, rcx
+        
+        roundTo4 rdi
+        roundTo4 rsi
+        
+        allocMatrix rdi, rsi
+        countSize rcx, rdi, rsi
+        pop rdi
+
+        test rax, rax
+        jz .exit
+
+        mov rdx, [rdi]
+        mov [rax], rdx
+        
+        mov rdx, [rdi + 8]
+        mov [rax + 8], rdx
+
+        mov rsi, rdi
+        add rsi, 16
+        
+        mov rdi, rax
+        add rdi, 16
+        
+        cld
+        rep movsd
+
+.exit
+        ret
+
 matrixScale:
+        push rdi
+
+        call cloneMatrix
+        test rax, rax
+        jz .exit_fail
+        
+        pop rdi
+        
+        mov r8, [rdi]
+        mov r9, [rdi + 8]
+
+        roundTo4 r8
+        roundTo4 r9
+        countSize rcx, r8, r9
+        shr rcx, 2
+
+        shufps xmm0, xmm0, 0
+
+        push rax
+        
+        add rax, 16
+.loop:
+        cmp rcx, 0
+        je .exit
+        movups xmm1, [rax]
+        mulps xmm1, xmm0
+        movups [rax], xmm1
+        add rax, 16
+        dec rcx
+        jmp .loop
+.exit:
+        pop rax
+.exit_fail:
         ret
         
 matrixAdd:

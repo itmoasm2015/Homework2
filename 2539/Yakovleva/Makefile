@@ -9,7 +9,7 @@ matrix.o: matrix.asm
 	ar rcs libhw.a matrix.o
 
 test.o: test.cpp matrix.asm
-	g++ -o test.o -O2 -L. -c test.cpp
+	g++ -o test.o -O2 -std=c++11 -L. -c test.cpp
 	g++ -o test -L. -O2 test.o -lhw
 
 clean:

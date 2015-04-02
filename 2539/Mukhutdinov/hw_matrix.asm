@@ -18,6 +18,14 @@
 %endrep
 %endmacro
 
+%macro  madd 2-*
+%assign x %1
+%rep %0-1
+%rotate -1
+              add   %1, x
+%endrep
+%endmacro
+
 ;; save registers and allocate stack space
 %macro CDECL_ENTER 2
               mpush rbp, rbx, r12, r13, r14, r15
@@ -206,15 +214,60 @@ matrixScale:
               lea    rsi, [rax + matrix.data] ; Set RSI to the beginning of output matrix
 
               shr    rcx, 2          ; Divide by 4 to use DEC instead of SUB
-.copy_loop:
+.mul_loop:
               movaps xmm1, [rdi]     ; Perform multiplication
               mulps  xmm1, xmm0
               movaps [rsi], xmm1
 
-              add    rdi, 16         ; and shift all the indices
-              add    rsi, 16
+              madd   16, rdi, rsi    ; and shift all the indices
               dec    rcx
-              jnz    .copy_loop
+              jnz    .mul_loop
 
               ret
 
+
+;; @cdecl64
+;; Matrix matrixAdd(Matrix a, Matrix b);
+;;
+;; Sums 2 matrices. 
+;;
+;; @param RDI void* a -- first summand
+;; @param RSI void* b -- second summand
+;; @return RAX void* -- pointer to a sum
+matrixAdd:
+              mov    r8, [rdi]                   ; a.rows
+              mov    r9, [rdi + matrix.cols]     ; a.cols
+              mov    r10, [rsi]                  ; b.rows
+              mov    r11, [rsi + matrix.cols]    ; b.cols
+
+              xor    rax, rax        ; return NULL by default
+              cmp    r8, r10         ; Compare dimensions
+              jne    .return         ; of matrices
+
+              cmp    r9, r11         ; and return NULL
+              jne    .return         ; if they don't match
+
+              mpush  rdi, rsi        ; Save summands addresses
+
+              mov    rdi, r8
+              mov    rsi, r9
+              call matrixNewRaw
+
+              mpop   rdi, rsi        ; Restore summand addresses
+              push   rax             ; and save new matrix address
+
+              madd   matrix_size, rdi, rsi, rax
+              shr    rcx, 2          ; Divide by 4 to use DEC instead of SUB 
+.sum_loop:    
+              movaps xmm0, [rdi]
+              movaps xmm1, [rsi]
+              addps  xmm0, xmm1
+              movaps [rax], xmm0
+
+              madd   16, rdi, rsi, rax
+              dec    rcx
+              jnz    .sum_loop
+
+              pop    rax             ; Restore new matrix address
+.return:
+              ret

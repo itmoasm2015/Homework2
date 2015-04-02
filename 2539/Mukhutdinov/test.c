@@ -29,6 +29,10 @@ int main()
     TEST("should matrixScale properly #1", (float) 3, matrixGet(m2, 1, 2));
     TEST("should matrixScale properly #2", (float) 8.68, matrixGet(m2, 0, 3));
 
+    Matrix m3 = matrixAdd(m, m2);
+    TEST("should matrixSum properly #1", (float) 4.5, matrixGet(m3, 1, 2));
+    TEST("should matrixSum properly #2", (float) 13.02, matrixGet(m3, 0, 3));
+    TEST("should matrixSum properly #3", (float) 0, matrixGet(m3, 3, 2));
 
     matrixDelete(m);
     return 0;

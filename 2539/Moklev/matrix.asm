@@ -21,6 +21,29 @@
     and %1, ~3
 %endmacro
 
+%macro get_row_index 3 ; get_row_index(dest, row, cols): dest = row * cols // dest != rax
+    push rax
+    push rdx
+    mov rax, %2
+    mul %3
+    pop rdx
+    mov %1, rax
+    shl %1, 2
+    pop rax 
+%endmacro
+
+%macro extract_index 4 ; extract_index(x, y, cols, index): x = (index - 1) % cols, y = (index - 1) / cols // {x, y} != {rax, rdx}
+    push rax
+    push rdx
+    xor rdx, rdx
+    lea rax, [%4 - 1]
+    div %3
+    mov %2, rax
+    mov %1, rdx
+    pop rdx
+    pop rax
+%endmacro
+
 extern aligned_alloc
 extern malloc
 extern free
@@ -109,9 +132,10 @@ matrixNewExt:
     jz .return               ; if flag == 0 than skip initialization
     ; # Move matrix size to /counter/ register rcx
     ; # Fill the matrix data with 0.0f values
-    mov ebx, 1
     mov rcx, rsi
     mov rsi, [rax + 8]
+    test rcx, rcx
+    jz .return
 .fill_zeroes:
     mov dword [rsi + 4 * rcx - 4], 0.0
     loop .fill_zeroes
@@ -141,7 +165,8 @@ matrixAlloc:
 matrixDelete:
     enter 0, 0
     push_x64            ; save registers by x64 convention
-    mov rbp, rsp
+    test rdi, rdi       ; if matrixDelete(NULL)
+    jz .return          ; do nothing
 
     mov r15, rdi        ; store struct address at safe register
     mov rdi, [rdi + 8]  ; pass argument of Matrix->(float* data) to free
@@ -149,6 +174,7 @@ matrixDelete:
     mov rdi, r15        ; pass struct address to free
     call free           ; free(void* ptr) -- free matrix
 
+.return:
     pop_x64             ; restore registers
     leave
     ret    
@@ -313,6 +339,8 @@ matrixTranspose:
     mov rbx, [r14 + 8]
     
     mov rcx, rax
+    test rcx, rcx
+    jz .after_fill
 .fill:
     mov r13d, dword [r15 + 4 * rcx - 4]
     mov rax, rcx
@@ -325,6 +353,7 @@ matrixTranspose:
     add rax, r12
     mov dword [rbx + 4 * rax], r13d
     loop .fill
+.after_fill:
     mov rax, r14
 
     pop r11
@@ -339,46 +368,120 @@ matrixMul:
     enter 0, 0
     push_x64
         
-    ; # Multiplication is correct only if a->cols == b->cols
+    ; # Multiplication is correct only if a->cols == b->rows
     ;   If it's true, sizes of resulting matrix will be:
     ;   result->rows = a->rows
-    ;   result->cols = b->rows
+    ;   result->cols = b->cols
     mov eax, [rdi + 4]      ; load a->cols
-    cmp eax, [rsi + 4]      ; compare with b->cols
-    xor rax, rax            ; return NULL if not equals
+    cmp eax, [rsi]          ; compare with b->rows
+    mov rax, 0              ; does not change flags
     jne .return 
 
+    .wut
     push rdi                ; save pointer to a
     push rsi                ; save pointer to b
-    mov rdi, [rdi]          ; 1st argument is a->rows 
-    mov rsi, [rsi]          ; 2nd argument if b->rows
+    mov edi, [rdi]          ; 1st argument is a->rows 
+    mov esi, [rsi + 4]      ; 2nd argument if b->cols
+    and rdi, 0xFFFFFFFF
+    and rsi, 0xFFFFFFFF
+    .lol:
     call matrixAlloc        ; allocate resulting matrix
     pop rsi                 ; restore pointer to b
     pop rdi                 ; restore pointer to a
     test rax, rax           ; if matrixAlloc failed
     jz .return              ; return NULL
+    mov r12, rax            ; store pointer to result
 
-    xor r13, r13             ; clear high 32 bits
+    xor r13, r13            ; clear high 32 bits
     xor r14, r14            
     xor r15, r15
-    mov r13d, [rdi + 4]      ; save a->cols == b->cols
-    mov r14d, [rdi]          ; save result's rows
-    mov r15d, [rsi]          ; save result's cols
+    mov r13d, [rdi + 4]     ; save a->cols == b->rows
+    mov r14d, [rdi]         ; save result's rows
+    mov r15d, [rsi + 4]     ; save result's cols
   
-    push rax
-    push rdi
+                            ; # state of:
+    push rax                ; stack, rdi | rsi
+    push rdi                ; a, a | b
     
-    xchg rdi, rsi
-    call matrixTranspose
-    mov rsi, rax
+    xchg rdi, rsi           ; a, b | a
+    call matrixTranspose 
+    mov rsi, rax            ; a, ? | b^T
 
-    pop rdi 
+    pop rdi                 ; _, a | b^T
     pop rax
     
-     
+    mov rdx, rsi
 
-    mov rdi, rsi
-    call free
+    test rdx, rdx
+    jnz .after_null
+    mov rdi, r12
+    call matrixDelete
+    xor rax, rax
+    jmp .return  
+
+.after_null:
+    fit_4 r13
+    fit_4 r14
+    fit_4 r15
+    mov rdi, [rdi + 8]
+    mov rsi, [rsi + 8]                    
+    
+    push rdx
+    mov rax, r14 
+    xor rdx, rdx
+    mul r15
+    mov rcx, rax
+    pop rdx
+    
+    mov r11, [r12 + 8]
+
+    ; # state of registers here                  
+    ; rax  --  ? 
+    ; rbx  --  ?
+    ; rcx  --  rows fit4 x cols fit4
+    ; rdx  --  b^T
+    ; rdi  --  a->data
+    ; rsi  --  b^T->data
+    ; r12  --  result
+    ; r13  --  w fit4 
+    ; r14  --  rows fit4
+    ; r15  --  cols fit4
+    ; r8   --  ?
+    ; r9   --  ?
+    ; r10  --  ?
+    ; r11  --  result->data
+     
+.fill_result:
+    extract_index r8, r9, r15, rcx
+    xorps xmm0, xmm0
+    mov rax, r13
+    ; rax -- w 
+    ; r8  -- x
+    ; r9  -- y
+    ;mov r8, 1
+    ;mov r9, 0
+.lol_debug: 
+    get_row_index rbx, r9, r13
+    get_row_index r10, r8, r13
+    
+    add rbx, rdi
+    add r10, rsi
+    test rax, rax
+    jz .after_product
+.dot_product:
+    movaps xmm1, dqword [rbx + 4 * rax - 16]
+    movaps xmm2, dqword [r10 + 4 * rax - 16]
+    dpps xmm1, xmm2, 11110001b
+    addss xmm0, xmm1
+    sub rax, 4
+    jnz .dot_product
+.after_product:
+    movss dword [r11 + 4 * rcx - 4], xmm0
+    loop .fill_result
+
+    mov rdi, rdx
+    call matrixDelete
+    mov rax, r12
          
 .return:
     pop_x64

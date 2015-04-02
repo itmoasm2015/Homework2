@@ -60,6 +60,9 @@ global matrixNew, matrixDelete, matrixGetRows, matrixGetCols, matrixGet, matrixS
 ;;     uint64_t cols;
 ;;     float data[] __attribute__ ((aligned (16)));
 ;; };
+;; 
+;; Data is stored aligned by 16 bytes, which is achieved by aligned_alloc and rounding
+;; columns number up to 4.
               struc matrix
 .rows:        resq  1
 .cols:        resq  1
@@ -154,6 +157,21 @@ matrixGetCols:
               ret
 
 
+;; Macro containing set of operations for calculating address
+;; of desired matrix element.
+;; RDI -- matrix address,
+;; RSI -- row index
+;; RDX -- col index
+;; After all the address of element is (rax + r9*4) 
+%macro count_offset 0
+              lea   rax, [rsi*4]
+              mov   r9, rdx
+              mov   r8, [rdi + matrix.cols]
+              ROUND_4 r8                           ; Round number of cols up to 4, to get real data offset
+              mul   r8              
+              lea   rax, [rax + rdi + matrix_size] ; Now address of necessary row beginning is written into RAX (matrix + 16 + row * sizeof(float) * matrix->rows)
+%endmacro
+
 ;; @cdecl64
 ;; float matrixGet(Matrix matrix, unsigned int row, unsigned int col);
 ;;
@@ -164,13 +182,7 @@ matrixGetCols:
 ;; @param RDX unsigned int col -- col index
 ;; @return XMM0 float -- corresponding matrix element
 matrixGet:
-              lea   rax, [rsi*4]
-              mov   r9, rdx
-              mov   r8, [rdi + matrix.cols]
-              ROUND_4 r8
-              mul   r8              
-              lea   rax, [rax + rdi + matrix_size] ; Now address of necessary row beginning is written into RAX (matrix + 16 + row * sizeof(float) * matrix->rows)
-
+              count_offset
               movss xmm0, [rax + r9*4]
               ret
 
@@ -185,13 +197,7 @@ matrixGet:
 ;; @param RDX unsigned int col -- col index
 ;; @param XMM0 float value -- a value to set
 matrixSet:
-              lea   rax, [rsi*4]
-              mov   r9, rdx
-              mov   r8, [rdi + matrix.cols]
-              ROUND_4 r8
-              mul   r8
-              lea   rax, [rax + rdi + matrix_size] ; Now address of necessary row beginning is written into RAX (matrix + 16 + row * sizeof(float) * matrix->cols)
-
+              count_offset
               movss [rax + r9*4], xmm0 
               ret
 

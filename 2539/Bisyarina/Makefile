@@ -2,8 +2,10 @@ CC = gcc
 ASM = yasm
 AR = ar
 
-CFLAGS = -Wall -Wextra -std=c99 -m64 -O2 -L. -I.
-ASMFLAGS = -f elf64
+CFLAGS = -Wall -Wextra -std=c99 -g -L. -I.
+ASMFLAGS = -f elf64 -gdwarf2
+
+
 
 RM = rm -f
 

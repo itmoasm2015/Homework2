@@ -9,9 +9,9 @@ int get_random_int(int l, int r) {
 }
 
 #define TEST(test)	if (test()) \
-                        printf("%s %s", #test, "OK"); \
+                        printf("%s %s\n", #test, "OK"); \
                     else \
-                        printf("%s %s", #test, "FAILED"); \
+                        printf("%s %s\n", #test, "FAILED"); \
 
 const float eps = 1e-5;
 void printMatrix(Matrix a);
@@ -137,11 +137,43 @@ bool test_matrix_add() {
     return true;
 }
 
+bool test_matrix_scale() {
+    Matrix a;
+    unsigned int n = get_random_int(5, 10);
+    unsigned int m = get_random_int(1, 10);
+    a = matrixNew(n, m);
+    float** test = new float* [n];
+    for (int i = 0; i < n; i++)
+        test[i] = new float [m];
+    float v = (float) get_random_int(10000, 20000) / (float) get_random_int(1, 15000);
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++) {
+            float value = (float) get_random_int(10000, 20000) / (float) get_random_int(1, 15000);
+            matrixSet(a, i, j, value);
+            test[i][j] = value * v;
+        }
+    Matrix res = matrixScale(a, v);
+//    printMatrix(res);
+//    printMatrix(test, n, m);
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j  < m; j++)
+            if (fabs(matrixGet(res, i, j) - test[i][j]) >= eps) {
+                matrixDelete(res);
+                matrixDelete(a);
+                return false;
+            }
+    matrixDelete(res);
+    matrixDelete(a);
+    return true;
+}
+
+
 int main() {
 	TEST(test_matrix_new);
 	TEST(test_matrix_get_sizes);
     TEST(test_matrix_set);
     TEST(test_matrix_get);
     TEST(test_matrix_add);
+    TEST(test_matrix_scale);
 	return 0;
 }

@@ -32,20 +32,19 @@ unsigned int matrixGetCols(Matrix matrix);
 /**
  * Get matrix element.
  */
-int matrixGet(Matrix matrix, unsigned int row, unsigned int col);
-//float
+float matrixGet(Matrix matrix, unsigned int row, unsigned int col);
 
 /**
  * Set matrix element.
  */
-void matrixSet(Matrix matrix, unsigned int row, unsigned int col, int value);
-//float
+void matrixSet(Matrix matrix, unsigned int row, unsigned int col, float value);
+
 /**
  * Multiply matrix by a scalar.
  * \return new matrix.
  */
-Matrix matrixScale(Matrix matrix, int k);
-//float
+Matrix matrixScale(Matrix matrix, float k);
+
 
 /**
  * Add two matrices.

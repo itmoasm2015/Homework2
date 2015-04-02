@@ -85,6 +85,7 @@ matrixGetCols:
 ;rdi - pointer to matrix
 ;rsi = row
 ;rdx = col
+; xmm0 = answer
 matrixGet:
 	push rcx
 	mov rcx, rsi
@@ -92,14 +93,14 @@ matrixGet:
 	add rcx, rdx
 	imul rcx, 8
 	add rcx, 16
-	mov rax, [rdi + rcx]
+	movss xmm0, [rdi + rcx]
 	pop rcx
 	ret
 
 ;rdi - pointer to matrix
 ;rsi = row
 ;rdx = col
-;rcx = value
+;xmm0 = value
 matrixSet:
 	push rbx
 	mov rbx, rsi
@@ -108,12 +109,12 @@ matrixSet:
 	imul rbx, 8
 	add rbx, 16
 	add rbx, rdi
-	mov [rbx], rcx
+	movss [rbx], xmm0
 	pop rbx
 	ret
 
 ;rdi - pointer to matrix
-;rsi = scalar
+;xmm0 = scalar
 ;rax - pointer to new matrix
 ;for i in 1..n 
 ;    for j in 1..m 
@@ -124,7 +125,6 @@ matrixScale:
 	push rdi
 	push rsi
 	mov r10, rdi
-	mov r11, rsi
 	mov rdi, [r10]
 	mov rsi, [r10 + 8]
 	call matrixNew
@@ -142,8 +142,10 @@ matrixScale:
 	cmp rbx, [msize]
 	jz .end_scale
 	mov rdx, [r10]
-	imul rdx, r11
 	mov [r8], rdx
+	movss xmm1, [r8]
+	mulss xmm1, xmm0
+	movss [r8], xmm1
 	add r8, 8
 	add r10, 8
 	add rbx, 1
@@ -186,9 +188,9 @@ matrixAdd:
 .start_sum:
 	cmp rbx, [msize]
 	jz .end_sum
-	mov rdx, [r10]
-	add rdx, [r11]
-	mov [r8], rdx
+	movss xmm1, [r10]
+	addss xmm1, [r11]
+	movss [r8], xmm1
 	add r8, 8
 	add r10, 8
 	add r11, 8
@@ -268,9 +270,10 @@ matrixMul:
 	mov rsi, rdx
 	imul rsi, [rax + 8]
 	add rsi, rcx
-	mov r12, [r10 + rdi * 8]
-	imul r12, [r11 + rsi * 8]
-	add [sum], r12
+	movss xmm1, [r10 + rdi * 8]
+	mulss xmm1, [r11 + rsi * 8]
+	addss xmm1, [sum]
+	movss [sum], xmm1
 	add rdx, 1
 	jmp .start_cirlce3
 .end_circle3:

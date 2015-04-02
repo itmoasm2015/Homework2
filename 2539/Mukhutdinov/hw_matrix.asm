@@ -18,6 +18,14 @@
 %endrep
 %endmacro
 
+%macro  madd 2-*
+%assign x %1
+%rep %0-1
+%rotate -1
+              add   %1, x
+%endrep
+%endmacro
+
 ;; save registers and allocate stack space
 %macro CDECL_ENTER 2
               mpush rbp, rbx, r12, r13, r14, r15
@@ -34,7 +42,7 @@
 ;; round number up by 4
 %macro ROUND_4 1
               add   %1, 3
-              and   %1, -3
+              and   %1, -4
 %endmacro
 
 ;; CODE STARTS HERE ;;
@@ -57,15 +65,15 @@ global matrixNew, matrixDelete, matrixGetRows, matrixGetCols, matrixGet, matrixS
 .data:       
               endstruc 
               
-;; @cdecl64
-;; Matrix matrixNew(unsigned int rows, unsigned int cols);
+;; Matrix matrixNewRaw(unsigned int rows, unsigned int cols);
 ;; 
-;; Allocates a new matrix of rows*cols size.
+;; Allocates a new matrix of rows*cols size, does not zeroing out the data.
 ;;
 ;; @param RDI unsigned int rows -- num of rows
 ;; @param RSI unsigned int cols -- num of cols
 ;; @return RAX void* -- pointer to matrix struct
-matrixNew:    
+;; @return RCX unsigned int -- size of matrix (align(rows) * align(cols))
+matrixNewRaw:    
               CDECL_ENTER 0, 0
               mov   r8, rdi         ; Save real rows
               mov   r9, rsi         ; and cols values
@@ -79,7 +87,7 @@ matrixNew:
               mpush rax, r8, r9     ; save our data
               
               mov   rdi, 16
-              lea   rsi, [rax + matrix_size] ; 16 bytes in front of data for cols and rows
+              lea   rsi, [rax*4 + matrix_size] ; 16 bytes in front of data for cols and rows
               call  aligned_alloc
 
               test  rax, rax        ; Halt in case of allocation error
@@ -89,18 +97,28 @@ matrixNew:
 
               mov   [rax], r8       
               mov   [rax + matrix.cols], r9
-
-              cld                   ; Clear direction flag just in case
-              lea   rdi, [rax + matrix.data]
-
-              mov   rbx, rax        ; Save address in the beginning to zero out RAX
-              xor   rax, rax
-              rep   stosd           ; Fill data with zeroes
-              mov   rax, rbx        ; Restore address
 .return:      
               CDECL_RET
+            
+;; @cdecl64            
+;; Matrix matrixNew(unsigned int rows, unsigned int cols);
+;; 
+;; Allocates a new matrix of rows*cols size, filled with zeroes.
+;;
+;; @param RDI unsigned int rows -- num of rows
+;; @param RSI unsigned int cols -- num of cols
+;; @return RAX void* -- pointer to matrix struct
+matrixNew:
+              call  matrixNewRaw
+              lea   rdi, [rax + matrix.data]
 
+              mov   r8, rax          ; Save RAX because we need it to zero out data
+              xor   rax, rax
+              cld                    ; Clear direction flag just in case
 
+              rep   stosd
+              mov   rax, r8          ; Restore RAX
+              ret
 ;; @cdecl64
 ;; void matrixDelete(Matrix matrix);
 ;;
@@ -148,8 +166,108 @@ matrixGetCols:
 matrixGet:
               lea   rax, [rsi*4]
               mov   r8, [rdi]
-              mul   r8              ; Now byte offset of necessary row is written into RAX (row * sizeof(float) * matrix.rows)
-              movss xmm0, [rdx*4 + rax]
+              mul   r8              
+              lea   rax, [rax + rdi + matrix_size] ; Now address of necessary row beginning is written into RAX (matrix + 16 + row * sizeof(float) * matrix->rows)
+
+              movss xmm0, [rax + rdx*4]
               ret
 
 
+;; @cdecl64
+;; void matrixSet(Matrix matrix, unsigned int row, unsigned int col, float value);
+;;
+;; Sets matrix[rows][cols]
+;;
+;; @param RDI void* matrix -- matrix address
+;; @param RSI unsigned int row -- row index
+;; @param RDX unsigned int col -- col index
+;; @param XMM0 float value -- a value to set
+matrixSet:
+              lea   rax, [rsi*4]
+              mov   r8, [rdi]
+              mul   r8
+              lea   rax, [rax + rdi + matrix_size] ; Now address of necessary row beginning is written into RAX (matrix + 16 + row * sizeof(float) * matrix->rows)
+
+              movss [rax + rdx*4], xmm0 
+              ret
+
+
+;; @cdecl64
+;; Matrix matrixScale(Matrix matrix, float value);
+;;
+;; Multiply every matrix element by value 
+;;
+;; @param RDI void* matrix -- matrix address
+;; @param XMM0 float value -- a value to Multiply
+;; @return RAX void* -- pointer to a scaled matrix
+matrixScale:
+              push rdi               ; Save input matrix address
+
+              mov    rsi, [rdi + matrix.cols] ; Pass arguments
+              mov    rdi, [rdi]               ; to matrixNewRaw
+              call   matrixNewRaw             ; RAX = matrix pointer, RCX - matrix scaled size
+
+              shufps xmm0, xmm0, 0   ; Spread the 0th element of xmm0 (it's passed value) all over the xmm0 ([a, b, c, d] -> [a, a, a, a])
+
+              pop    rdi                      ; Restore input matrix address
+              add    rdi, matrix.data         ; Set RDI to the beginning of input matrix
+              lea    rsi, [rax + matrix.data] ; Set RSI to the beginning of output matrix
+
+              shr    rcx, 2          ; Divide by 4 to use DEC instead of SUB
+.mul_loop:
+              movaps xmm1, [rdi]     ; Perform multiplication
+              mulps  xmm1, xmm0
+              movaps [rsi], xmm1
+
+              madd   16, rdi, rsi    ; and shift all the indices
+              dec    rcx
+              jnz    .mul_loop
+
+              ret
+
+
+;; @cdecl64
+;; Matrix matrixAdd(Matrix a, Matrix b);
+;;
+;; Sums 2 matrices. 
+;;
+;; @param RDI void* a -- first summand
+;; @param RSI void* b -- second summand
+;; @return RAX void* -- pointer to a sum
+matrixAdd:
+              mov    r8, [rdi]                   ; a.rows
+              mov    r9, [rdi + matrix.cols]     ; a.cols
+              mov    r10, [rsi]                  ; b.rows
+              mov    r11, [rsi + matrix.cols]    ; b.cols
+
+              xor    rax, rax        ; return NULL by default
+              cmp    r8, r10         ; Compare dimensions
+              jne    .return         ; of matrices
+
+              cmp    r9, r11         ; and return NULL
+              jne    .return         ; if they don't match
+
+              mpush  rdi, rsi        ; Save summands addresses
+
+              mov    rdi, r8
+              mov    rsi, r9
+              call matrixNewRaw
+
+              mpop   rdi, rsi        ; Restore summand addresses
+              push   rax             ; and save new matrix address
+
+              madd   matrix_size, rdi, rsi, rax
+              shr    rcx, 2          ; Divide by 4 to use DEC instead of SUB 
+.sum_loop:    
+              movaps xmm0, [rdi]
+              movaps xmm1, [rsi]
+              addps  xmm0, xmm1
+              movaps [rax], xmm0
+
+              madd   16, rdi, rsi, rax
+              dec    rcx
+              jnz    .sum_loop
+
+              pop    rax             ; Restore new matrix address
+.return:
+              ret

@@ -25,6 +25,23 @@ section .text
             jne .fill_value
     %endmacro
 
+    ;; Create the matrix of the same size that we have
+    %macro createMatrix 0
+        push rdi
+        push rsi
+        mov rcx, 0
+        mov rdx, 0
+        mov ecx, [rdi]              ; Number of rows
+        mov edx, [rdi + 4]          ; Number of column
+        mov rdi, rcx
+        mov rsi, rdx
+        call matrixNew              ; Put new matrix to rax
+        mov rcx, rdi
+        mov rdx, rsi
+        pop rsi
+        pop rdi
+    %endmacro
+
     ;; Matrix matrixNew(unsigned int rows, unsigned int columns)
     ;; Takes:   RDI - number of rows
     ;;          RSI - number of columns
@@ -112,42 +129,28 @@ section .text
     ;;          RSI - pointer to the matrix b
     ;; Returns: RAX - ponter to (a + b)
     matrixAdd:
-        push rdi                    ; Given matrices can not be changed
-        push rsi
 
-        mov rcx, 0
-        mov rdx, 0
-        mov ecx, [rdi]              ; Number of rows
-        mov edx, [rdi + 4]          ; Number of columns
-        
-        mov rdi, rcx
-        mov rsi, rdx
-        call matrixNew              ; Put new matrix to rax
-        mov rcx, rdi
-        mov rdx, rsi
-        pop rsi
-        pop rdi
+        createMatrix
 
         push r10
-
         mov r10, rcx
-        imul r10, rdx
+        imul r10, rdx               ; Count a size of the matrix
         mov rcx, 0
         ; for (int i = 0; i < n * m; i += 4)
         .loop:
             add rcx, 4
             cmp rcx, r10
             jnle .loopFinish
-            movups xmm0, [rdi + 4 * (rcx - 2)]
-            movups xmm1, [rsi + 4 * (rcx - 2)]
-            addps xmm0, xmm1
-            movups [rax + 4 * (rcx - 2)], xmm0
+            movups xmm0, [rdi + 4 * (rcx - 2)]  ; Move packed 4 cells from the first matrix
+            movups xmm1, [rsi + 4 * (rcx - 2)]  ; ... from the second
+            addps xmm0, xmm1                    ; Add vectors
+            movups [rax + 4 * (rcx - 2)], xmm0  ; Return result
             jmp .loop 
         .loopFinish:
             sub rcx, 4
             cmp rcx, r10
             jz .break
-            movss xmm0, [rdi + 4 * (rcx + 2)]
+            movss xmm0, [rdi + 4 * (rcx + 2)]   ; Scalar mov
             addss xmm0, [rsi + 4 * (rcx + 2)]
             movss [rax + 4 * (rcx + 2)], xmm0
             inc rcx
@@ -156,5 +159,42 @@ section .text
         .break:
         pop r10
         ret
+    
+    ;; Matrix matrixScale(Matrix matrix, float k);
+    ;; Takes:   RDI - pointer to the matrix
+    ;;          XMM0 - k
+    ;; Returns: RAX - pointer to the matrix
+    matrixScale:
 
+        createMatrix
+
+        push r10
+        mov r10, 0
+        mov r10, rcx
+        imul r10, rdx                   ; Count a size
+        mov rcx, 0
+        .loop2:
+            add rcx, 4
+            cmp rcx, r10
+            jnle .loopFinish2
+            movups xmm1, [rdi + 4 * (rcx - 2)]  ; Move packed data
+            movss xmm2, xmm0
+            unpcklps xmm2, xmm2                 
+            unpcklps xmm2, xmm2                 ; Create the vector of k
+            mulps xmm1, xmm2                    ; Multiply vectors
+            movups [rax + 4 * (rcx - 2)], xmm1  ; Return result
+            jmp .loop2
+        .loopFinish2:
+            sub rcx, 4
+            cmp rcx, r10
+            jz .break2
+            movss xmm2, [rdi + 4 * (rcx + 2)]   ; Scalar
+            mulss xmm2, xmm0
+            movss [rax + 4 * (rcx + 2)], xmm2
+            inc rcx
+            add rcx, 4
+            jmp .loopFinish2
+        .break2:
+        pop r10
+        ret
 

@@ -176,13 +176,13 @@ void testMul(int maxN) {
 int main() {
 	srand(time(NULL));
 	printf("START TEST\n");
-	int maxN = 1;
-	for (int i = 1; i < 9; i++) {
-		testScale(maxN);
-		testAdd(maxN);
-		testMul(maxN);
-		maxN *= 10;	
-	}
+    int maxN = 1;
+    for (int i = 1; i < 9; i++) {
+        testScale(maxN);
+        testAdd(maxN);
+        testMul(maxN);
+        maxN *= 10;
+    }
 	printf("END TEST\n");
 	return 0;
 }

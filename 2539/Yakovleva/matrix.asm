@@ -47,6 +47,8 @@ matrixNew:
 	imul rdi, 8		;
 	add rdi, 16		;	rdi is count of memory we need
 	call malloc		; try to take memory
+	jmp .fill_zero
+.end_fill_zero:
 	pop r8			; return saved registers on positions
 	pop r10
 	pop rdx
@@ -59,8 +61,6 @@ matrixNew:
 	mov [rax + 8], rsi	; save cows in our matrix to [rax + 8]
 	pop rbp
 	ret
-	jmp .fill_zero
-.end_fill_zero:
 
 .fill_zero:			; set zero all elements in our matrix
 	mov rcx, 0		; set number of current element

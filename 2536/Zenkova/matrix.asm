@@ -245,6 +245,105 @@ matrixAdd:
 ;
 ;returns: rax - pointer to new matrix
 matrixMul:
+    push r14
+    push r15
+    push rbp
+
+    ;we should check if we're allowed to mul matrices (m*n and n*p)
+    mov r8, [rdi+columns]
+    mov r9, [rsi+rows]
+    cmp r8, r9
+    jne .invalid_input
+
+    mov r8, rdi
+    mov r9, rsi
+
+    xchg rdi, rsi ;change their places, so we can transpose second matrix
+
+    push r8
+    push r9
+
+    call matrixTranspose ;we need to transpose matrix in rsi, the result is in rax  
+
+    mov rbp, rax ;let's store transposed matris in rbp
+
+    pop r9
+    pop r8
+
+    ;calculates parameters of the result matrix
+    mov rdi, [r8+rows]
+    mov rsi, [r9+columns]
+
+    push r9
+    push r8
+
+    call matrixNew ;creates new matrix in rax with parameters m and p
+
+    pop r8
+    pop r9
+    mov rdi, r8
+    mov rsi, r9
+    mov r8, [rdi+cells] ;first matrix' cells
+    mov r9, [rbp+cells] ;transposed second matrix' cells
+    mov r14, [rax+cells] ;result matrix' cells
+    mov r10, [rsi+aligned_columns]
+    mov r11, [rdi+aligned_rows]
+
+    mov rdx, [rdi+aligned_columns]
+    shl rdx, 2 ;size of one row in bytes
+
+    mov rsi, r9
+    mov rdi, r10
+
+.loop_first:
+    mov r10, rdi
+    mov r9, rsi
+
+.loop_second:
+    xor r15, r15 ;r15 - number of moved elements in one iteration
+    xorps xmm0, xmm0 ;temp var for storing sum
+
+.loop_third:
+    movups xmm1, [r8+r15] ;xmm1 = a:b:c:d
+    movups xmm2, [r9+r15] ;xmm2 = e:f:g:h
+    mulps xmm1, xmm2 ;xmm1 = a*e : b*f : c*g : d*h
+    haddps xmm1, xmm1 ;xmm1 = a*e + b*f : c*g + d*h : a*e + b*f : c*g + d*h
+    haddps xmm1, xmm1 ;xmm1 = a*e + b*f + c*g + d*h : ...
+    addps xmm0, xmm1 ;add current result to our temp variable
+
+    add r15, 16 ;move pointer 4*sizeof float bytes
+    cmp r15, rdx ;check if we get to the finish of the line
+    jb .loop_third
+
+    add r9, rdx 
+    movss [r14], xmm0 ;move current result to new matrix
+    add r14, 4
+    dec r10
+    jnz .loop_second ;if we've filled whole line, we can continue with next line
+
+    add r8, rdx 
+    dec r11
+    jnz .loop_first ;if we've finished with all lines, so we've found the result
+
+    push rax
+
+    mov rdi, rbp
+    call matrixDelete ;we no longer need transposed second matrix
+
+    pop rax 
+    pop rbp
+    pop r15
+    pop r14
+    ret
+
+.invalid_input:
+    mov rax, 0
+    pop rbp
+    pop r15
+    pop r14
+    ret 
+
+
 
 ;Matrix matrixClone(Matrix matrix)
 ;
@@ -254,8 +353,8 @@ matrixMul:
 ;
 ;returns: rax - pointer to new matrix
 matrixClone:
-    mov rbx, rdi
     push rbx
+    mov rbx, rdi
 
     mov rdi, [rbx+rows]
     mov rsi, [rbx+columns]

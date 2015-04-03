@@ -14,12 +14,14 @@ global matrixAdd
 global matrixMul
 
 ;;; Matrix is stored in memorys way:
-;;; First 8 bytes - amount of rows
-;;; Second 8 bytes - amount of columns
-;;; In further memory matrix is placed by rows
+;;; First 8 bytes - amount of rows - uint64
+;;; Second 8 bytes - amount of columns - uint64
+;;; In further memory matrix is placed by rows 
 ;;; Column and row sizes are rounded up to 4 to simplify access using SSE
 ;;; Alllocated memory is aligned by 16 to speed up
 
+
+;;; Some usefull macroses
 
 ;;; Rounds first arguments to 4 and stores it
 ;;; Affects only first arg
@@ -452,7 +454,7 @@ matrixMul:
 .store:
         xor rcx, rcx
         inc rbx
-        mov r13, rdi            ; reset r13 to the beginning of row
+        mov r13, rdi                    ; reset r13 to the beginning of row
         
         ;; Get horisontal sum of accumulator
         haddps xmm7, xmm7
@@ -460,14 +462,14 @@ matrixMul:
 
         ;; Store result in C[i][j]
         movss [r11], xmm7
-        add r11, 4              ; inc pointer to current element of result matrix
+        add r11, 4                      ; inc pointer to current element of result matrix
         jmp .loopJ
 .exit:
         pop rax
         pop r14
         pop r13
         pop r12
-        pop rbx                 ; get stored pointer to result
+        pop rbx                         ; get stored pointer to result
         ret
 .exit_fail:
         xor rax, rax

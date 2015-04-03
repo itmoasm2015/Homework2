@@ -15,6 +15,9 @@ global matrixNew
 matrixNew:
         push rbx
         push r12
+        push r13
+        push rbp
+        mov rbp, rsp
 
         mov eax, edi ; rows
         mov ebx, eax
@@ -26,14 +29,25 @@ matrixNew:
         mul edx
         shl rdx, 32
         mov edx, eax
-        lea rsi, [rdx + 3 * rdx + 16]
+        lea r13, [rdx + 3 * rdx]
+        lea rsi, [r13 + 16]
         mov r12, rcx
         mov rdi, 16
+        and rsp, ~15
         call aligned_alloc
         mov [rax], ebx
         mov rcx, r12
         mov [rax + 4], ecx
 
+        xorps xmm0, xmm0
+.loop:
+        movaps [rax + r13], xmm0
+        sub r13, 16
+        jnz .loop
+
+        mov rsp, rbp
+        pop rbp
+        pop r13
         pop r12
         pop rbx
         ret
@@ -88,6 +102,7 @@ matrixScale:
         getCols(esi, rbx)
         mov r12, rdi
         mov r13, rsi
+        movaps xmm1, xmm0
         call matrixNew
         mov rdi, rax
         mov rax, r12
@@ -99,12 +114,11 @@ matrixScale:
         mov edx, eax
         mov rax, rdi
 
-        movlhps xmm0, xmm0
-        haddps xmm0, xmm0
+        shufps xmm1, xmm1, 0
 .loop:
-        movaps xmm1, [rbx + 4 * rdx]
-        mulps xmm1, xmm0
-        movaps [rdi + 4 * rdx], xmm1
+        movaps xmm0, [rbx + 4 * rdx]
+        mulps xmm0, xmm1
+        movaps [rdi + 4 * rdx], xmm0
         sub rdx, 4
         jnz .loop
 

@@ -158,28 +158,25 @@ matrixAdd:
         ret
 
 %macro loadAndTranspose 3
-        ; xmm0 - xmm3 - 4x4 matrix chunk
         movaps xmm0, [%1]
         movaps xmm1, [%1 + 4 * %2]
         lea %3, [%1 + 8 * %2]
         movaps xmm2, [%3]
         movaps xmm3, [%3 + 4 * %2]
-        movaps xmm6, xmm0
-        movhlps xmm6, xmm1
-        movaps xmm4, xmm2
-        movhlps xmm4, xmm3
+        movaps xmm4, xmm0
+        movlhps xmm4, xmm1
+        movaps xmm6, xmm2
+        movlhps xmm6, xmm3
         movaps xmm5, xmm4
-        shufps xmm4, xmm6, ODD_POS
-        shufps xmm5, xmm6, EVEN_POS
-        movaps xmm8, xmm1
-        movlhps xmm8, xmm0
-        movaps xmm6, xmm3
-        movlhps xmm6, xmm2
+        shufps xmm4, xmm6, EVEN_POS
+        shufps xmm5, xmm6, ODD_POS
+        movaps xmm6, xmm1
+        movhlps xmm6, xmm0
+        movaps xmm8, xmm3
+        movhlps xmm8, xmm2
         movaps xmm7, xmm6
-        shufps xmm6, xmm8, ODD_POS
-        shufps xmm7, xmm8, EVEN_POS
-        ; xmm4 - xmm7 - transposed chunk
-        ;               of the matrix
+        shufps xmm6, xmm8, EVEN_POS
+        shufps xmm7, xmm8, ODD_POS
 %endmacro
 
 %macro loadAndMultiply 1
@@ -233,26 +230,7 @@ matrixMul:
         mov r11, r15
 .col1:  mov r8, rbx
         lea rdi, [rax + 16]
-.col2:  ;loadAndTranspose r13, rbx, rcx
-        movaps xmm0, [r13]
-        movaps xmm1, [r13 + 4 * rbx]
-        lea rcx, [r13 + 8 * rbx]
-        movaps xmm2, [rcx]
-        movaps xmm3, [rcx + 4 * rbx]
-        movaps xmm4, xmm0
-        movlhps xmm4, xmm1
-        movaps xmm6, xmm2
-        movlhps xmm6, xmm3
-        movaps xmm5, xmm4
-        shufps xmm4, xmm6, EVEN_POS
-        shufps xmm5, xmm6, ODD_POS
-        movaps xmm6, xmm1
-        movhlps xmm6, xmm0
-        movaps xmm8, xmm3
-        movhlps xmm8, xmm2
-        movaps xmm7, xmm6
-        shufps xmm6, xmm8, EVEN_POS
-        shufps xmm7, xmm8, ODD_POS
+.col2:  loadAndTranspose r13, rbx, rcx
         mov r9, r14
         mov r10, r12
         mov rdx, rdi

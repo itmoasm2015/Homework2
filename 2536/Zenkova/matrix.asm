@@ -50,7 +50,7 @@ endstruc
 ;description: creates new instance of Matrix
 ;
 ;takes: rdi - number of rows
-;	rsi - number of columns
+;	    rsi - number of columns
 ;
 ;returns: rax - pointer to created Matrix, if succeded, and null instead
 matrixNew:
@@ -130,8 +130,8 @@ matrixGetColumns:
 ;description: returns exact [row, col] element of Matrix
 ;
 ;takes: rdi - pointer to instance of matrix
-;	rsi - value of row
-;	rdx - value of col 
+;	    rsi - value of row
+;	    rdx - value of col 
 ;
 ;returns: xmm0 - value in [row, col]
 matrixGet:
@@ -144,9 +144,9 @@ matrixGet:
 ;description: sets value to [row, col] in matrix
 ;
 ;takes: rdi - pointer to instance of matrix
-;	rsi - value of row
-;	rdx - value of col
-;	xmm0 - value
+;	    rsi - value of row
+;	    rdx - value of col
+;	    xmm0 - value
 ;
 ;returns: nothing
 matrixSet:
@@ -159,7 +159,7 @@ matrixSet:
 ;description: creates new matrix, which is a result of scaling given matrix by k
 ;
 ;takes: rdi - pointer to instance of matrix
-;	xmm0 - k
+;	    xmm0 - k
 ;returns: rax - pointer to new matrix
 matrixScale:
 	punpckldq xmm0, xmm0
@@ -186,7 +186,7 @@ matrixScale:
 ;description: creates new matrix, which is a result of summation of matrices a and b
 ;
 ;takes: rdi - pointer to Matrix a
-;	rsi - pointer to Matrix b
+;	    rsi - pointer to Matrix b
 ;
 ;returns: rax - pointer to new matrix
 matrixAdd:
@@ -241,7 +241,7 @@ matrixAdd:
 ;description: creates new matrix, which is a result of multiplication of matrices a and b
 ;
 ;takes: rdi - pointer to Matrix a
-;	rsi - pointer to Matrix b
+;       rsi - pointer to Matrix b
 ;
 ;returns: rax - pointer to new matrix
 matrixMul:
@@ -254,6 +254,25 @@ matrixMul:
 ;
 ;returns: rax - pointer to new matrix
 matrixClone:
+    mov rbx, rdi
+    push rbx
+
+    mov rdi, [rbx+rows]
+    mov rsi, [rbx+columns]
+
+    call matrixNew ;rax - pointer to new matrix
+
+    mov rcx, [rax+aligned_columns]
+    imul rcx, [rax+aligned_rows]
+
+    pop rbx
+    mov rdi, [rax+cells] ;cloned matrix pointer
+    mov rsi, [rbx+cells] ;source matrix pointer
+
+    rep movsd
+    mov rdi, rsi ;moves cell values from source matrix to cloned
+
+    ret
 
 ;Matrix matrixTranspose(Matrix matrix) 
 ;

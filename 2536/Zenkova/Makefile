@@ -1,7 +1,8 @@
-ASMC=yasm
-CC=gcc
+ASMC=yasm -o
+CC=gcc -o
 ASM_FLAGS=-felf64 -gdwarf2
 CXX_FLAGS=-std=c11 -g -L. -I.
+ST_LIB=ar rcs
 
 all: test
 
@@ -11,10 +12,10 @@ clean:
 	rm -f test
 
 test: libhw.a
-	$(CC) -o $< $(CXX_FLAGS) $@ -lhw
+	$(CC) $< $(CXX_FLAGS) $@ -lhw
 
 libhw.a: hw.o
-	ar rcs $< $@
+	$(ST_LIB) $< $@
 
 hw.o: matrix.asm
-	$(ASMC) -o $< $(ASM_FLAGS) $@
+	$(ASMC) $< $(ASM_FLAGS) $@

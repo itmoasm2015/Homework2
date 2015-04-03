@@ -12,10 +12,10 @@ clean:
 	rm -f test
 
 test: libhw.a
-	$(CC) $< $(CXX_FLAGS) $@ -lhw
+	$(CC) $@ $(CXX_FLAGS) test.c -lhw
 
 libhw.a: hw.o
-	$(ST_LIB) $< $@
+	$(ST_LIB) $@ $<
 
 hw.o: matrix.asm
-	$(ASMC) $< $(ASM_FLAGS) $@
+	$(ASMC) $@ $(ASM_FLAGS) $<

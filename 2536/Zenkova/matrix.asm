@@ -2,6 +2,7 @@ section .text
 
 extern malloc
 extern free
+extern calloc
 
 global matrixNew
 global matrixDelete
@@ -38,9 +39,9 @@ global matrixTranspose
 ;rows and columns are stored aligned by 4
 ;so we can use them in SSE (vector) instructions
 struc Matrix
-	cells:			resq 1 ;pointer to float array of values
-	rows:			resq 1 ;number of rows
-	columns:		resq 1 ;number of columns
+	cells:			    resq 1 ;pointer to float array of values
+	rows:			    resq 1 ;number of rows
+	columns:		    resq 1 ;number of columns
 	aligned_rows:		resq 1 ;aligned number of rows
 	aligned_columns:	resq 1 ;aligned number of columns
 endstruc
@@ -114,14 +115,14 @@ matrixGetRows:
 	mov rax, [rdi+rows]
 	ret
 	
-;unsigned int matrixGetColumns(Matrix matrix)
+;unsigned int matrixGetCols(Matrix matrix)
 ;
 ;description: returns number of given matrix' columns
 ;
 ;takes: rdi - pointer to instance of Matrix
 ;
 ;returns: rax - number of columns
-matrixGetColumns:
+matrixGetCols:
 	mov rax, [rdi+columns]
 	ret
 
@@ -177,7 +178,7 @@ matrixScale:
 	movups [r8], xmm1 ;returns changed cells to matrix
 	add r8, 16 ;move output pointer 4*sizeof float bytes
 	sub rcx, 4
-	jnx .mul_loop
+	jnz .mul_loop
 	
 	ret
 	
@@ -405,16 +406,16 @@ matrixTranspose:
 
 .inner_loop:
     movups xmm0, [r8] ;xmm0=a:b:c:d
-    extracps [r13], xmm0, 0 ;[r13] := a
+    extractps [r13], xmm0, 0 ;[r13] := a
 
     lea r13, [r13+r10*4] ;update address to the next output cell
-    extracps [r13], xmm0, 1 ;[r13] := b
+    extractps [r13], xmm0, 1 ;[r13] := b
 
     lea r13, [r13+r10*4] ;update address to the next output cell
-    extracps [r13], xmm0, 2 ;[r13] := c
+    extractps [r13], xmm0, 2 ;[r13] := c
 
     lea r13, [r13+r10*4] ;update address to the next output cell
-    extracps [r13], xmm0, 3 ;[r13] := d
+    extractps [r13], xmm0, 3 ;[r13] := d
 
     lea r13, [r13+r10*4]
     add r8, 16 ;move pointer 4*sizeof float bytes

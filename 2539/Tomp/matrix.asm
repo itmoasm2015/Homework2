@@ -324,5 +324,6 @@ matrixMul:
         pop rbx
         ret
 
+; Masks for SHUFPS (all odd and even positions, respectively)
 ODD_POS equ (3 << 6) + (1 << 4) + (3 << 2) + 1
 EVEN_POS equ (2 << 6) + (0 << 4) + (2 << 2) + 0

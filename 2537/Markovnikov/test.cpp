@@ -9,14 +9,13 @@ int get_random_int(int l, int r) {
 }
 
 #define TEST(test)	if (test()) \
-											printf("%s %s", #test, "OK"); \
-										else \
-											printf("%s %s", #test, "FAILED"); \
+                        printf("%s %s\n", #test, "OK"); \
+                    else \
+                        printf("%s %s\n", #test, "FAILED"); \
 
 const float eps = 1e-5;
 void printMatrix(Matrix a);
 void printMatrix(float** a, unsigned int n, unsigned int m);
-
 
 bool test_matrix_new() {
 	Matrix a;
@@ -69,7 +68,7 @@ bool test_matrix_get() {
         test[i] = new float [m];
     for (int i = 0; i < n; i++)
         for (int j = 0; j < m; j++) {
-            float value = get_random_int(10000, 1000) / get_random_int(1, 7000);
+            float value = (float) get_random_int(10000, 1000) / (float) get_random_int(1, 7000);
             matrixSet(a, i, j, value);
             test[i][j] = value;
         }
@@ -101,9 +100,72 @@ void printMatrix(float** a, unsigned int n, unsigned int m) {
             printf("%f ", a[i][j]);
         printf("\n");
      }
-
 }
 
+bool test_matrix_add() {
+    Matrix a;
+    Matrix b;
+    Matrix c;
+    unsigned int n = get_random_int(1, 10);
+    unsigned int m = get_random_int(1, 10);
+    float** test_c = new float* [n];
+    a = matrixNew(n, m);
+    b = matrixNew(n, m);
+    for (int i = 0; i < n; i++) {
+        test_c[i] = new float [m];
+    }
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++) {
+            float a_v = (float) get_random_int(5000, 20000) / (float) get_random_int(1000, 15000);
+            float b_v = (float) get_random_int(5000, 20000) / (float) get_random_int(1000, 15000);
+            matrixSet(a, i, j, a_v);
+            matrixSet(b, i, j, b_v);
+            test_c[i][j] = a_v + b_v;
+        }
+    c = matrixAdd(a, b);
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++)
+            if (fabs(matrixGet(c, i, j) - test_c[i][j]) >= eps) {
+                matrixDelete(a);
+                matrixDelete(b);
+                matrixDelete(c);
+                return false;
+            }
+    matrixDelete(a);
+    matrixDelete(b);
+    matrixDelete(c);
+    return true;
+}
+
+bool test_matrix_scale() {
+    Matrix a;
+    unsigned int n = get_random_int(5, 10);
+    unsigned int m = get_random_int(1, 10);
+    a = matrixNew(n, m);
+    float** test = new float* [n];
+    for (int i = 0; i < n; i++)
+        test[i] = new float [m];
+    float v = (float) get_random_int(10000, 20000) / (float) get_random_int(1, 15000);
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++) {
+            float value = (float) get_random_int(10000, 20000) / (float) get_random_int(1, 15000);
+            matrixSet(a, i, j, value);
+            test[i][j] = value * v;
+        }
+    Matrix res = matrixScale(a, v);
+//    printMatrix(res);
+//    printMatrix(test, n, m);
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j  < m; j++)
+            if (fabs(matrixGet(res, i, j) - test[i][j]) >= eps) {
+                matrixDelete(res);
+                matrixDelete(a);
+                return false;
+            }
+    matrixDelete(res);
+    matrixDelete(a);
+    return true;
+}
 
 
 int main() {
@@ -111,7 +173,7 @@ int main() {
 	TEST(test_matrix_get_sizes);
     TEST(test_matrix_set);
     TEST(test_matrix_get);
-//  Matrix a;
-//	a = matrixNew(256, 1025);
+    TEST(test_matrix_add);
+    TEST(test_matrix_scale);
 	return 0;
 }

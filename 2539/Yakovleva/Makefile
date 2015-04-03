@@ -16,5 +16,6 @@ clean:
 	rm -f libhw.a
 	rm -f matrix.o
 	rm -f test.o
+	rm -f matrix
 	rm -f test
 

@@ -26,7 +26,7 @@ global matrixTranspose
 ;row value is in rsi, column value is in rdx
 ;matrix' pointer is in rdi 
 %macro get_cell_pointer 0
-;at first, we calculate the number of cell in matrix (row*Matrix.aligned_colums+column)
+;at first, we calculate the number of cell in matrix (row*Matrix.aligned_columns+column)
 	imul rsi, [rdi+aligned_columns]
 	add rsi, rdx ;rsi - cell's number
 	shl rsi, 2 ;rsi*4 - number of cell's beginning
@@ -68,7 +68,7 @@ matrixNew:
 	mov [rax+columns], rsi 
 	
 	align_by_4 rdi ;align rows
-	align_by_4 rsi ;align colums
+	align_by_4 rsi ;align columns
 
 	mov [rax+aligned_rows], rdi ;initialize aligned matrix parameters
 	mov [rax+aligned_columns], rsi
@@ -282,4 +282,51 @@ matrixClone:
 ;
 ;returns; rax - pointer to new matrix
 matrixTranspose:
+    push r12
+    push r13
+    mov r8, rdi
 
+    mov rdi, [r8+columns]
+    mov rsi, [r8+rows]
+    push r8
+    call matrixNew
+    pop r8
+    mov rdi, r8
+
+    mov r8, [rdi+cells] ;source matrix' cells
+    mov r9, [rax+cells] ;new matrix' cells
+    mov r10, [rdi+aligned_rows]
+    mov r11, [rdi+aligned_columns]
+
+    xor rcx, rcx
+
+.outer_loop:
+    xor r12, r12 ;number of cells moved in .inner_loop
+    lea r13, [r9+rcx*4] ;address of first output cell
+
+.inner_loop:
+    movups xmm0, [r8] ;xmm0=a:b:c:d
+    extracps [r13], xmm0, 0 ;[r13] := a
+
+    lea r13, [r13+r10*4] ;update address to the next output cell
+    extracps [r13], xmm0, 1 ;[r13] := b
+
+    lea r13, [r13+r10*4] ;update address to the next output cell
+    extracps [r13], xmm0, 2 ;[r13] := c
+
+    lea r13, [r13+r10*4] ;update address to the next output cell
+    extracps [r13], xmm0, 3 ;[r13] := d
+
+    lea r13, [r13+r10*4]
+    add r8, 16 ;move pointer 4*sizeof float bytes
+    add r12, 4 ;we've moved 4 elements
+    cmp r12, r11 ; if they're equal, so we've transposed the whole line 
+    jb .inner_loop
+
+    inc rcx
+    cmp rcx, r10
+    jb .outer_loop
+
+    pop r13
+    pop r12
+    ret

@@ -1,10 +1,10 @@
-makeall: clean test
-	./test
-
+#makeall: clean test
+makeall: clean libhw.a
 
 test: test.o libhw.a
 	gcc -Wall -msse -g -std=c99 -o $@ $^ 
-	
+	./test
+
 test.o:
 	gcc test.c -Wall -g -std=c99 -c -o $@
 

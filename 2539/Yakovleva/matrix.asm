@@ -38,12 +38,20 @@ matrixNew:
 	push rsi		;
 	push rbx		;
 	push r11		;
+	push rcx		;
+	push rdx		;
+	push r10		;
+	push r8			;
 	imul rdi, rsi		; calculate count of elements
 	mov [msize], rdi	; remember it
 	imul rdi, 8		;
 	add rdi, 16		;	rdi is count of memory we need
 	call malloc		; try to take memory
-	pop r11			; return saved registers on positions
+	pop r8			; return saved registers on positions
+	pop r10
+	pop rdx
+	pop rcx
+	pop r11
 	pop rbx
 	pop rsi
 	pop rdi
@@ -188,6 +196,7 @@ matrixAdd:
 	mov [msize], rdx	; set size = rows * cols
 	add r10, 16		; skip matrix proportions
 	add r8, 16		;
+	add r11, 16		;
 .start_sum:
 	cmp rbx, [msize]	; if number of current element == size then return
 	jz .end_sum		;

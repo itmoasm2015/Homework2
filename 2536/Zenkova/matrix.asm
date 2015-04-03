@@ -22,6 +22,19 @@ global matrixTranspose
 	shl %1, 2
 %endmacro
 
+;sometimes we will need to know the pointer to exact cell [row, col] in matrix
+;row value is in rsi, column value is in rdx
+;matrix' pointer is in rdi 
+%macro get_cell_pointer 0
+;at first, we calculate the number of cell in matrix (row*Matrix.aligned_colums+column)
+	imul rsi, [rdi+aligned_columns]
+	add rsi, rdx ;rsi - cell's number
+	shl rsi, 2 ;rsi*4 - number of cell's beginning
+	
+	mov rax, [rdi+cells] ;rax - pointer to the first cell
+	add rax, rsi ;rax - pointer to desired cell
+%endmacro
+
 ;rows and columns are stored aligned by 4
 ;so we can use them in SSE (vector) instructions
 struc Matrix
@@ -82,8 +95,14 @@ matrixNew:
 ;
 ;returns: nothing
 matrixDelete:
-	
- 
+	push rdi
+	mov rdi, [rdi+cells]
+	call free ;frees all memory space, where matrix' cells are located
+
+	pop rdi
+	call free ;frees memory off matrix at all
+	ret
+		 
 ;unsigned int matrixGetRows(Matrix matrix)
 ;
 ;description: returns number of given matrix' rows
@@ -114,8 +133,11 @@ matrixGetColumns:
 ;	rsi - value of row
 ;	rdx - value of col 
 ;
-;returns: rax - value in [row, col]
+;returns: xmm0 - value in [row, col]
 matrixGet:
+	get_cell_pointer
+	movss xmm0, [rax]
+	ret
 
 ;void matrixSet(Matrix matrix, unsigned int row, unsigned int col, float value)
 ;
@@ -128,6 +150,9 @@ matrixGet:
 ;
 ;returns: nothing
 matrixSet:
+	get_cell_pointer
+	movss [rax], xmm0
+	ret
 
 ;Matrix matrixScale(Matrix matrix, float k)
 ;

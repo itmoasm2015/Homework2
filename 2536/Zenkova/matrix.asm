@@ -34,13 +34,12 @@ endstruc
 
 ;Matrix matrixNew(unsigned int rows, unsigned int columns)
 ;
-;creates: new instance of Matrix
+;description: creates new instance of Matrix
 ;
-;takes: RDI - number of rows
-;	RSI - number of columns
+;takes: rdi - number of rows
+;	rsi - number of columns
 ;
-;returns: RAX - pointer to created Matrix, if succeded, and null instead
-
+;returns: rax - pointer to created Matrix, if succeded, and null instead
 matrixNew:
 	push rdi ;save needed registers
 	push rsi
@@ -75,6 +74,106 @@ matrixNew:
 	
 	ret
 
-
+;void matrixDelete(Matrix matrix)
+;
+;description: deletes previously allocated matrix
+;
+;takes: rdi - pointer to instance of Matrix
+;
+;returns: nothing
+matrixDelete:
+	
  
+;unsigned int matrixGetRows(Matrix matrix)
+;
+;description: returns number of given matrix' rows
+;
+;takes: rdi - pointer to instance of Matrix
+;
+;returns: rax - number of rows
+matrixGetRows:
+	mov rax, [rdi+rows]
+	ret
+	
+;unsigned int matrixGetColumns(Matrix matrix)
+;
+;description: returns number of given matrix' columns
+;
+;takes: rdi - pointer to instance of Matrix
+;
+;returns: rax - number of columns
+matrixGetColumns:
+	mov rax, [rdi+columns]
+	ret
+
+;float matrixGet(Matrix matrix, unsigned int row, unsigned int col)
+;
+;description: returns exact [row, col] element of Matrix
+;
+;takes: rdi - pointer to instance of matrix
+;	rsi - value of row
+;	rdx - value of col 
+;
+;returns: rax - value in [row, col]
+matrixGet:
+
+;void matrixSet(Matrix matrix, unsigned int row, unsigned int col, float value)
+;
+;description: sets value to [row, col] in matrix
+;
+;takes: rdi - pointer to instance of matrix
+;	rsi - value of row
+;	rdx - value of col
+;	xmm0 - value
+;
+;returns: nothing
+matrixSet:
+
+;Matrix matrixScale(Matrix matrix, float k)
+;
+;description: creates new matrix, which is a result of scaling given matrix by k
+;
+;takes: rdi - pointer to instance of matrix
+;	xmm0 - k
+;
+;returns: rax - pointer to new matrix
+matrixScale:
+
+;Matrix matrixAdd(Matrix a, Matrix b) 
+;
+;description: creates new matrix, which is a result of summation of matrices a and b
+;
+;takes: rdi - pointer to Matrix a
+;	rsi - pointer to Matrix b
+;
+;returns: rax - pointer to new matrix
+matrixAdd:
+
+;Matrix matrixMul(Matrix a, Matrix b) 
+;
+;description: creates new matrix, which is a result of multiplication of matrices a and b
+;
+;takes: rdi - pointer to Matrix a
+;	rsi - pointer to Matrix b
+;
+;returns: rax - pointer to new matrix
+matrixMul:
+
+;Matrix matrixClone(Matrix matrix)
+;
+;description: creates new matrix, which is a copy of given matrix
+;
+;takes: rdi - pointer to source matrix
+;
+;returns: rax - pointer to new matrix
+matrixClone:
+
+;Matrix matrixTranspose(Matrix matrix) 
+;
+;description: creates new matrix, which is a result of transposition of given matrix
+;
+;takes: rdi - pointer to source matrix
+;
+;returns; rax - pointer to new matrix
+matrixTranspose:
 

@@ -160,10 +160,27 @@ matrixSet:
 ;
 ;takes: rdi - pointer to instance of matrix
 ;	xmm0 - k
-;
 ;returns: rax - pointer to new matrix
 matrixScale:
+	punpckldq xmm0, xmm0
+	punpckldq xmm0, xmm0 ;create 4 instances of float, previosly stored in xmm0
 
+	call matrixClone
+
+	mov rcx, [rax+aligned_columns]
+	imul rcx, [rax+aligned_rows] ;get cells' number
+	mov r8, [rax+cells] ;get new matrix' cells' pointer
+
+.mul_loop:
+	movups xmm1, [r8] ;loads 4 first cells to xmm1 
+	mulps xmm1, xmm0 ;multiplies two vectors: vector1 - vector with 4 cells, vector2 - vector with 4 scale values
+	movups [r8], xmm1 ;returns changed cells to matrix
+	add r8, 16 ;move output pointer 4*sizeof float bytes
+	sub rcx, 4
+	jnx .mul_loop
+	
+	ret
+	
 ;Matrix matrixAdd(Matrix a, Matrix b) 
 ;
 ;description: creates new matrix, which is a result of summation of matrices a and b
@@ -173,6 +190,51 @@ matrixScale:
 ;
 ;returns: rax - pointer to new matrix
 matrixAdd:
+	push rdi
+	push rsi
+	
+	;we can sum two matrices only if they have same parameters
+	mov r8, [rdi+columns]
+	mov r9, [rsi+columns]
+	cmp r8, r9 ;check columns
+	jne .invalid_input
+
+	mov r8, [rdi+rows]
+	mov r9, [rsi+rows]
+	cmp r8, r9 ;check rows
+	jne .invalid_input
+
+	call matrixClone
+	
+	pop rdi
+	pop rsi
+        
+    mov rcx, [rax+aligned_columns]
+    imul rcx, [rax+aligned_rows] ;get cells' number
+    mov r8, [rax+cells] ;get new matrix' cells' pointer
+    mov r9, [rsi+cells] ;pointer to matrix b's cells
+
+.add_loop:
+    ;loads 4 cells of both matrix and sum them
+    movups xmm0, [r8]
+    movups xmm1, [r9]
+    addps xmm0, xmm1
+    movups [r8], xmm0 ;the result stored in first matrix's copy
+
+    ;move output pointer 4*sizeof float bytes
+    add r8, 16
+    add r9, 16
+    sub rcx, 4
+    jnz .add_loop
+    jmp .finish
+
+.invalid_input:
+    pop rsi
+    pop rdi
+    mov rax, 0
+
+.finish:
+    ret
 
 ;Matrix matrixMul(Matrix a, Matrix b) 
 ;

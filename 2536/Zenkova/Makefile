@@ -1,21 +1,15 @@
-ASMC=yasm -o
-CC=gcc -o
-ASM_FLAGS=-felf64 -gdwarf2
-CXX_FLAGS=-std=c11 -g -L. -I.
-ST_LIB=ar rcs
+ASM = yasm
+AR = ar
+ASM_OPTS = -g dwarf2 -f elf64
 
-all: test
+all: libhw.a
 
 clean:
 	rm -f libhw.a
-	rm -f hw.o
-	rm -f test
+	rm -f matrix.o
 
-test: libhw.a
-	$(CC) $< $(CXX_FLAGS) $@ -lhw
+libhw.a: matrix.o
+	$(AR) rcs $@ $<
 
-libhw.a: hw.o
-	$(ST_LIB) $< $@
-
-hw.o: matrix.asm
-	$(ASMC) $< $(ASM_FLAGS) $@
+matrix.o: matrix.asm
+	$(ASM) -o $@ $(ASM_OPTS) $^

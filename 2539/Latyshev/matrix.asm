@@ -126,6 +126,7 @@ matrixSet:
 
 ;Matrix matrixCopy(Matrix matrix)
 ;return new Matrix with same sizes and elements as matrix
+;or NULL if aligned_alloc fail
 matrixCopy:
 	enter	0, 0		;save state
 	push	r12		
@@ -142,110 +143,157 @@ matrixCopy:
 	mov		rdi, 16		
 	mov		rsi, rax
 	call	aligned_alloc	;alloc this memory, rax <- new Matrix
+	test	rax, rax	;test that rax is not NULL
+	jz		.failure
 
 	mov		rcx, r12	;copy data
 	mov		rdi, rax
 	mov		rsi, r13
 	rep		movsb	
-	
+
+.failure
 	pop		r13			;load state
 	pop		r12
 	leave
 	ret
 
+;Martix matrixScale(Matrix, float)
+;return Matrix, which has same elements as first matrix, but multiply on second argument
+;or NULL if alligned_alloc fail
 matrixScale:
-	enter	0, 0
+	enter	0, 0		;save state
 
-	sub		rsp, 4
+	sub		rsp, 4		;align stack on 16 bytes for calling matrixCopy
 	and		rsp, ~0xf
-	movss	[rsp], xmm0
+	movss	[rsp], xmm0	;save xmm0
 	
 	call	matrixCopy
-	push	rax
-	matrixSize rax
+	test	rax, rax	;test that rax is not NULL
+	jz		.failure	
 	
-	mov		rcx, rax
+	push	rax
+	matrixSize rax	
+	
+	mov		rcx, rax	;rcx <- current index of last float
 	pop		rax	
-	pshufd	xmm0, [rsp], 0
+	pshufd	xmm0, [rsp], 0	;load xmm0
+	
 .scale_loop
-	movaps	xmm1, [rax + rcx * 4]
+	movaps	xmm1, [rax + rcx * 4]	;multiply group of four number on xmm0, and return back to the memory
 	mulps	xmm1, xmm0
 	movaps	[rax + rcx * 4], xmm1
 	sub		rcx, 4
 	test	rcx, rcx
 	jnz		.scale_loop
-	
+
+.failure
 	leave
 	ret
 
+;Matrix matrixAdd(Matrix matrix1, Matrix matrix2)
+;return new Matrix with same size as matrix1 and matrix2
+;with elements equals sum of appropriate ones from matrix1 and matrix2
+;return NULL if matrix1 and matrix2 have different sizes or if alligned_alloc fails
 matrixAdd:
 	enter	0, 0
+	
+	xor		rax, rax	;clear rax in case NULL-return because of diferent sizes
 
-	push	rsi
+	mov		rdx, [rdi]	;check rows
+	mov		rcx, [rsi]
+	cmp		rcx, rdx
+	jne		.failure
+
+	mov		rdx, [rdi + 8]	;check cols
+	mov		rcx, [rsi + 8]
+	cmp		rcx, rdx
+	jne		.failure
+
+	push	rsi		;copy matrix from rdi. save rsi, because it isn't callee-saved.
 	call	matrixCopy
 	pop		rsi
-	mov		rdi, rax
-	matrixSize rax
-	mov		rcx, rax
+	
+	test	rax, rax	;test that rax is not NULL
+	jz		.failure
+
+	mov		rdi, rax	;save address to rdi
+	matrixSize rax		;compute size
+	mov		rcx, rax	;prepare to circle
 	mov		rax, rdi
 
 .add_loop
-	movaps	xmm0, [rax + rcx * 4]
-	addps	xmm0, [rsi + rcx * 4]
-	movaps	[rax + rcx * 4], xmm0
+	movaps	xmm0, [rax + rcx * 4]	;load four floats from first matrix
+	addps	xmm0, [rsi + rcx * 4]	;sum they with four float from second matrix
+	movaps	[rax + rcx * 4], xmm0	;save result to matrix-answer
 
 	sub		rcx, 4
 	test	rcx, rcx
 	jnz		.add_loop
 
+.failure
 	leave
 	ret
 
+;Matrix matrixMul(Matrix matrix1, Matrix matrix2)
+;return Matrix - product of matrix1 and matrix2 in that order (multiplication is not commutative)
+;let matrix1 has sizes [a * b], and matrix2 has sizes [c * d]
+;for multiplication b should be equal to c, if it is not, then matrixMul return NULL,
+;also it may return NULL if aligned_alloc fail.
+;undefine behavior if one of a, b, c or d is zero.
+;
+;size of new Matrix-product will be [a * d]
+;
+;Because of often cache-missing I use strange way to multiply matrixes.
+;I take one column from second matrix, rotate it (alloc memory and copy it to this memory).
+;after it, I multiply every first matrix row to this column and write it to answer column. 
+;So I have two series of cache-misses: first - in copy column to extra memory, second - in writing floats to answer
+;
 matrixMul:
-	enter	0, 0
+	enter	0, 0	;save state
 	push	r12
 	push	r13
 	push	r14
 	push	r15
 	push	rbx
 
-	xor		rax, rax
-	mov		r9, [rdi + 8]
+	xor		rax, rax	;clear rax for NULL-return situation
+	mov		r9, [rdi + 8]	;check that b equals to c
 	mov		r10, [rsi]
 	cmp		r9, r10
 	jne		.failure
 
-	mov		r12, rdi				;matrix a
-	mov		r13, rsi				;matrix b
+	mov		r12, rdi				;r12 <- matrix1
+	mov		r13, rsi				;r13 <- matrix2
 	
-
-
 	;alloc memory for one column
 	mov		rdi, 16
 	mov		rsi, [r13]
 	fourCeil rsi
-	sal		rsi, 2
+	sal		rsi, 2		;rsi <- size of one column
 	call	aligned_alloc
-	test	rax, rax
+	test	rax, rax	;check that rax isn't NULL 
 	jz		.failure
 	mov		rbx, rax
 	
 	;create room for result
 	mov		rdi, [r12]
 	mov		rsi, [r13 + 8]
-	mov		r15, rsi
+	mov		r15, rsi	;r15 <- d, it will be counter for main_loop
 	call	matrixNew
-	mov		r14, rax
+	test	rax, rax	;check that rax isn't NULL
+	jz		.failure
+	mov		r14, rax	;r14 <- address of answer
 	
 	
 .main_loop
-	mov		rcx, [r13]
-	xor		rdx, rdx
-	mov		r8, [r13 + 8]
-	fourCeil r8
-	sal		r8, 2
-	mov		r9, r13
-
+	mov		rcx, [r13]	;prepare to copying column rcx <- b(c)
+	xor		rdx, rdx	;rdx will be variable of circle
+	mov		r8, [r13 + 8]	;r8 <- d
+	fourCeil r8		
+	sal		r8, 2	;count of bytes in memory	
+	mov		r9, r13	;it will be pointer to row in second matrix
+	
+	;copying - use eax for buffer
 	.copy_column
 		mov		eax, [r9 + r15 * 4 + 12]
 		mov		[rbx + rdx * 4], eax
@@ -254,36 +302,36 @@ matrixMul:
 		cmp		rdx, rcx
 		jl		.copy_column
 	
-	mov		rcx, [r12]
+	mov		rcx, [r12]	;rcx <- a, it will be counter for loop1
+	mov		r9,	r14	;it will be pointer to row in address
 	
-	mov		r9,	r14
-	lea		rdx, [r15 * 4]
-	push	r12
+	push	r12		;save registers, because I need more 
 	push	r13
 	push	r14	
+
 	mov		r13, [r12 + 8]
 	fourCeil r13
-	sal		r13, 2
+	sal		r13, 2	;real size of row in first matrix
 
 	.loop1
 		xorps	xmm0, xmm0
-		mov		r14, r13
+		mov		r14, r13	;end of row in first matrix
 		.loop2
-			movaps	xmm1, [r12 + r14]
+			movaps	xmm1, [r12 + r14]	;compute dot product and add it to xmm0
 			movaps	xmm2, [rbx + r14 - 16]
 			dpps	xmm1, xmm2, 0xF1
 			addss	xmm0, xmm1
 
-			sub		r14, 16			
+			sub		r14, 16				;decrease counter
 			test	r14, r14
 			jnz		.loop2
 		
-		movss	[r9 + r15 * 4 + 12], xmm0
-		add		r9, r8
-		add		r12, r13
+		movss	[r9 + r15 * 4 + 12], xmm0	;save xmm0 to answer
+		add		r9, r8	;go to next row in answer
+		add		r12, r13	;go to next row in first matrix
 		loop	.loop1
 	
-	pop		r14
+	pop		r14			;load registers
 	pop		r13
 	pop		r12
 
@@ -291,9 +339,9 @@ matrixMul:
 	test	r15, r15
 	jnz		.main_loop
 	
-	mov		rax, r14
+	mov		rax, r14	;answer in r14
 .failure
-	pop		rbx
+	pop		rbx			;load state
 	pop		r15
 	pop		r14
 	pop		r13

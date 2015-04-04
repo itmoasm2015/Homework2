@@ -21,8 +21,8 @@ void printMatrix(Matrix c) {
 int main(int argc, char const *argv[])
 {
 
-	Matrix a = matrixNew(4, 3);
-	Matrix b = matrixNew(3, 5);
+	Matrix a = matrixNew(56, 6);
+	Matrix b = matrixNew(6, 11);
 	for (int i = 0; i < matrixGetRows(a); i++) {
 		for (int j = 0; j < matrixGetCols(a); j++) {
 			printf("%d ", (i + 5));		
@@ -38,6 +38,7 @@ int main(int argc, char const *argv[])
 	printMatrix(a);
 	printMatrix(b);
 	Matrix c = matrixMul(a, b);
+	//Matrix c = matrixNew(9, 13);
 	printf("\n%d\n-----", (int) c);
 	printMatrix(c);	
 	return 0;

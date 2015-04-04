@@ -281,11 +281,12 @@ matrixMul:
     cmp r8, rax
     jne .multiply
 
+
+    pop rax
     jmp .multiply_no_error
 .multiply_error
     xor rax, rax
 .multiply_no_error
-    pop rax
     pop r14
     pop r13
     pop r12

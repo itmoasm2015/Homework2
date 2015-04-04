@@ -22,8 +22,8 @@ void printMatrix(Matrix c) {
 int main(int argc, char const *argv[])
 {
 
-	Matrix a = matrixNew(4, 4);
-	Matrix b = matrixNew(4, 4);
+	Matrix a = matrixNew(1, 100);
+	Matrix b = matrixNew(12, 1);
 	//Matrix b = matrixNew(100, 100);
 	for (int i = 0; i < matrixGetRows(a); i++) {
 		for (int j = 0; j < matrixGetCols(a); j++) {
@@ -39,7 +39,7 @@ int main(int argc, char const *argv[])
 	}
 	printMatrix(a);
 	printMatrix(b);
-	Matrix c = matrixScale(a, 44.);
+	Matrix c = matrixAdd(a, b);
 	//Matrix c = matrixNew(9, 13);
 	printf("\n%d\n-----", (int) c);
 	printMatrix(c);	

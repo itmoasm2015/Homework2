@@ -170,6 +170,9 @@ matrixAdd:
     pop rsi
     pop rdi
 
+    cmp rax, 0
+    je .adding_error
+
     ;r8 - number of elements in matrix multiplied by 4, used in loop
     xor r8, r8
     mov r8d, [rsi + 12]
@@ -217,6 +220,11 @@ matrixMul:
     call matrixNew
     pop rsi
     pop rdi
+    
+    ;result matrix can be very large, so we need to check, that we can create it.    
+    cmp rax, 0
+    je .multiply_error
+    
     push rax
 
     ;r8 used in loop to know when we should stop

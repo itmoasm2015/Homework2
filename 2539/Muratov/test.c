@@ -22,8 +22,8 @@ void printMatrix(Matrix c) {
 int main(int argc, char const *argv[])
 {
 
-	Matrix a = matrixNew(1, 100);
-	Matrix b = matrixNew(12, 1);
+	Matrix a = matrixNew(555555, 2);
+	Matrix b = matrixNew(2, 555555);
 	//Matrix b = matrixNew(100, 100);
 	for (int i = 0; i < matrixGetRows(a); i++) {
 		for (int j = 0; j < matrixGetCols(a); j++) {
@@ -37,9 +37,9 @@ int main(int argc, char const *argv[])
 			matrixSet(b, i, j, (float) 1.);		
 		}
 	}
-	printMatrix(a);
-	printMatrix(b);
-	Matrix c = matrixAdd(a, b);
+	//printMatrix(a);
+	//printMatrix(b);
+	Matrix c = matrixMul(a, b);
 	//Matrix c = matrixNew(9, 13);
 	printf("\n%d\n-----", (int) c);
 	printMatrix(c);	

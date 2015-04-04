@@ -5,43 +5,42 @@
 #include "matrix.h"
 
 int get_random_int(int l, int r) {
-	return rand() % r + l;
+    return rand() % r + l;
 }
 
-#define TEST(test)	if (test()) \
+#define TEST(test)  if (test()) \
                         printf("%s %s\n", #test, "OK"); \
                     else \
                         printf("%s %s\n", #test, "FAILED"); \
 
-const float eps = 1e-5;
+const float eps = 1e-4;
 void printMatrix(Matrix a);
 void printMatrix(float** a, unsigned int n, unsigned int m);
 
 bool test_matrix_new() {
-	Matrix a;
-	unsigned int n = get_random_int(1, 1000);
-	unsigned int m = get_random_int(1, 1000);
-	a = matrixNew(n, m);
+    Matrix a;
+    unsigned int n = get_random_int(1, 1000);
+    unsigned int m = get_random_int(1, 1000);
+    a = matrixNew(n, m);
     for (int i = 0; i < n; i++)
         for (int j = 0; j < m; j++)
             if (fabs(matrixGet(a, i, j)) >= eps) {
                 matrixDelete(a);
                 return false;
-            }
-                
-	matrixDelete(a);
-	return true;
+            }    
+    matrixDelete(a);
+    return true;
 }
 
 bool test_matrix_get_sizes() {
-	Matrix a;
-	unsigned int n = get_random_int(1, 1000);
-	unsigned int m = get_random_int(1, 1000);
-	a = matrixNew(n, m);
-	unsigned int nn = matrixGetRows(a);
-	unsigned int mm = matrixGetCols(a);
-	matrixDelete(a);
-	return (n == nn & m == mm);
+    Matrix a;
+    unsigned int n = get_random_int(1, 1000);
+    unsigned int m = get_random_int(1, 1000);
+    a = matrixNew(n, m);
+    unsigned int nn = matrixGetRows(a);
+    unsigned int mm = matrixGetCols(a);
+    matrixDelete(a);
+    return (n == nn & m == mm);
 }
 
 bool test_matrix_set() {
@@ -167,6 +166,91 @@ bool test_matrix_scale() {
     return true;
 }
 
+bool test_matrix_transpose() {
+    Matrix a;
+    unsigned int n = 20;
+    unsigned int m = 30;
+    a = matrixNew(n, m);
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++) {
+            float v = (float) get_random_int(10000, 20000) / (float) get_random_int(1, 15000);
+            matrixSet(a, i, j, v);
+        }
+    Matrix res = matrixMul(a, a);
+ //   printMatrix(a);
+ //   printMatrix(res);
+    if (matrixGetRows(res) != m || matrixGetCols(res) != n)
+        return false;
+    for (int i = 0; i < m; i++)
+        for (int j = 0; j < n; j++) {
+            if (fabs(matrixGet(a, j , i) - matrixGet(res, i, j)) >= eps) {
+                printMatrix(a);
+                printMatrix(res);
+                matrixDelete(a);
+                matrixDelete(res);
+                return false;
+            }
+        }
+    matrixDelete(a);
+    matrixDelete(res);
+    return true;
+}
+
+bool test_matrix_mul() {
+    Matrix a;
+    Matrix b;
+    unsigned int n = get_random_int(1, 100);
+    unsigned int m = get_random_int(1, 100);
+    unsigned int q = get_random_int(1, 100);
+    
+    a = matrixNew(m, n);
+    b = matrixNew(n, q);
+    float** test_a = new float* [m];
+    float** test_b = new float* [n];
+    for (int i = 0; i < m; i++)
+        test_a[i] = new float [n];
+    for (int i = 0; i < n; i++)
+        test_b[i] = new float [q];
+    for (int i = 0; i < m; i++)
+        for (int j = 0; j < n; j++) {
+            float v_a = (float) get_random_int(10, 20) / (float) get_random_int(10, 20);
+            matrixSet(a, i, j, v_a);
+            test_a[i][j] = v_a;
+        }
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < q; j++) {
+            float v_b = (float) get_random_int(10, 20) / (float) get_random_int(10, 20);
+            matrixSet(b, i, j, v_b);
+            test_b[i][j] = v_b;
+        }
+    
+    Matrix res = matrixMul(a, b);
+    float** test_res = new float* [m];
+    
+    if (matrixGetRows(res) != m || matrixGetCols(res) != q)
+        return false;
+    for (int i = 0; i < m; i++)
+        test_res[i] = new float [q];
+    for (int i = 0; i < m; i++)
+        for (int j = 0; j < q; j++)
+            test_res[i][j] = 0;
+    for (int i = 0; i < m; i++)
+        for (int j = 0; j < q; j++)
+            for (int k = 0; k < n; k++) {
+                test_res[i][j] += test_a[i][k] * test_b[k][j];
+            }
+   // printMatrix(res);
+   // printMatrix(test_res, m, q);
+    for (int i = 0; i < m; i++)
+        for (int j = 0; j < q; j++) {
+            if (fabs(test_res[i][j] - matrixGet(res, i, j)) >= eps)
+                return false;
+        }
+    matrixDelete(a);
+    matrixDelete(b);
+    matrixDelete(res);
+    return true;
+}
 
 int main() {
 	TEST(test_matrix_new);
@@ -175,5 +259,7 @@ int main() {
     TEST(test_matrix_get);
     TEST(test_matrix_add);
     TEST(test_matrix_scale);
+    TEST(test_matrix_mul);
+    //TEST(test_matrix_transpose);
 	return 0;
 }

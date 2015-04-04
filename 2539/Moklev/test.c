@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include "matrix.h"
 #include <math.h>
+#include <stdlib.h>
+#include <time.h>
 
 #define EPS 0.001
 
@@ -79,12 +81,14 @@ int testMul(int rows, int cols) {
 	
 	int result = 1;
 	
-	Matrix c = matrixMul(a, a);
-	if(c != 0) {
-		result = (rows == cols);
-		matrixDelete(c); // uh
-	}
+	//Matrix c = matrixMul(a, a);
+	//if(c != 0) {
+  	//	result = (rows == cols);
+	//	matrixDelete(c); // uh
+	//}
 	
+    Matrix c;
+
 	c = matrixMul(a, b);
 	if(c == 0)
 		result = 0;
@@ -130,33 +134,24 @@ int testZeroMul(int rows, int cols) {
 
 #define TEST(a) test++; if(!((a)(rows, cols))) printf("Test failed: %s(%d, %d)\n", #a, rows, cols); else success++;
 
-int main() {
-
-    Matrix a = matrixNew(8, 12);
-    for (int i = 0; i < matrixGetRows(a); i++) {
-        for (int j = 0; j < matrixGetCols(a); j++) {
-            matrixSet(a, i, j, i + j * matrixGetRows(a));
-            printf("%.2f ", matrixGet(a, i, j));
-        }
-        printf("\n");
-    }
-
-    a = matrixTranspose(a);
+void print(Matrix a) 
+{
     for (int i = 0; i < matrixGetRows(a); i++) {
         for (int j = 0; j < matrixGetCols(a); j++) {
             printf("%.2f ", matrixGet(a, i, j));
         }
         printf("\n");
     }
+    printf("\n");
+}
 
-    return 0;
-	
-	int test = 0;
+int main() {	
+    int test = 0;
 	int success = 0;
 	
 	for(int rows = 1; rows <= 16; rows++) {
 		for(int cols = 1; cols <= 16; cols++) {
-			TEST(testCreation);
+            TEST(testCreation);
 			TEST(testScale);
 			TEST(testAddition);
 			TEST(testMul);
@@ -173,14 +168,36 @@ int main() {
 	int huge_c[] = {1, 100000, 4, 16, 1024};
 	
 	for(int i = 0; i < 5; i++) {
-		Matrix a = randomMatrix(huge_a[i], huge_b[i], 1);
+        Matrix a = randomMatrix(huge_a[i], huge_b[i], 1);
 		Matrix b = randomMatrix(huge_b[i], huge_c[i], 2);
 		
-		//matrixDelete(matrixMul(a, b));
+		matrixDelete(matrixMul(a, b));
 		
 		matrixDelete(a);
 		matrixDelete(b);
 	}
 	
-	return 0;
+    Matrix a = randomMatrix(1000, 1000, 1);
+    Matrix b = randomMatrix(1000, 1000, 3);
+
+    int time1 = clock();
+
+    for (int k = 0; k < 10; k++) {
+        matrixMul(a, b);
+    }
+	
+    printf("time 1000x1000 x 1000x1000: %ld ms\n", (clock() - time1) / (CLOCKS_PER_SEC / 1000));
+
+    a = randomMatrix(10000000, 1, 1);
+    b = randomMatrix(1, 1, 3);
+
+    time1 = clock();
+
+    for (int k = 0; k < 10; k++) {
+        matrixMul(a, b);
+    }
+	
+    printf("time 10000000x1 x 1x1: %ld ms\n", (clock() - time1) / (CLOCKS_PER_SEC / 1000));
+    
+    return 0;
 }

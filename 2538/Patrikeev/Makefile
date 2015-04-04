@@ -2,7 +2,7 @@ GCC = gcc
 CPP = g++
 ASM = yasm
 CPP_FLAGS = -Wall -g -L. -I../../include
-GCC_FLAGS = -Wall -g -m64 -Wextra -std=c99 -m64 -L. -I../../include
+GCC_FLAGS = -Wall -g -Wextra -std=c99 -m64 -L. -I../../include
 C_FLAGS = -L. -I../../include
 ASM_FLAGS = -g dwarf2 -f elf64 
 

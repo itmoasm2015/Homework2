@@ -1,4 +1,4 @@
-#include "include/matrix.h"
+#include "../../include/matrix.h"
 #include <iostream>
 #include <climits>
 #include <cassert>
@@ -6,26 +6,31 @@
 
 using namespace std;
 
+struct Internal {
+  unsigned rows, cols;
+  char padding[8];
+  float values[];
+};
+
 struct Cmat {
-  Matrix mat;
+  Internal *mat;
   unsigned rows, cols;
   unsigned rcols;
 
-  Cmat(Matrix mat)
-    : mat(mat)
-    , rows(mat.rows)
-    , cols(mat.cols)
+  Cmat(Matrix mat0)
+    : mat((Internal*)mat0)
+    , rows(mat->rows)
+    , cols(mat->cols)
     , rcols(((cols-1)&(~3))+4) {
-    assert(mat.rows == matrixGetRows(mat));
-    assert(mat.cols == matrixGetCols(mat));
-    assert((size_t)mat.values%16 == 0);
+    assert(mat->rows == matrixGetRows(mat));
+    assert(mat->cols == matrixGetCols(mat));
+    assert(((size_t)&mat->values)%16 == 0);
   }
 
   Cmat(unsigned rows, unsigned cols)
       : Cmat(matrixNew(rows, cols)) {
-    assert(mat.rows == rows);
-    assert(mat.cols == cols);
-    assert((size_t)mat.values%16 == 0);
+    assert(mat->rows == rows);
+    assert(mat->cols == cols);
     for (unsigned i=0; i<rows; i++) {
       for (unsigned j=0; j<rcols; j++) {
 	assert(really_at(i,j) == 0);
@@ -36,7 +41,7 @@ struct Cmat {
   float really_at(unsigned i, unsigned j) {
     assert(i<rows);
     assert(j<rcols);
-    return mat.values[i*rcols+j];
+    return mat->values[i*rcols+j];
   }
 
   float get(unsigned i, unsigned j) {
@@ -125,6 +130,16 @@ Cmat cmul(Cmat a, Cmat b) {
   return res;
 }
 
+void fill(Cmat m) {
+  for (unsigned i=0; i<m.rows; i++) {
+    for (unsigned j=0; j<m.cols; j++) {
+      float fi = (float)i;
+      float fj = (float)j;
+      m.set(i, j, 10*fi+fj+1);
+    }
+  }
+}
+
 float random_float() {
   return static_cast<float>(rand());
 }
@@ -138,14 +153,21 @@ void random_fill(Cmat v) {
 }
 
 int main() {
-  const unsigned A=129;
-  const unsigned B=311;
-  const unsigned C=412;
+  //*
+  for (unsigned A=1; A<=16; A++)
+  for (unsigned B=1; B<=16; B++)
+  for (unsigned C=1; C<=16; C++)
+  /*/
+  const unsigned A=411;
+  const unsigned B=309;
+  const unsigned C=423;
+  //*/
+  if(true){
   Cmat a(A, B);
   Cmat b(B, C);
   random_fill(a);
   random_fill(b);
-  Cmat c = a.scale(-1.32);
+  Cmat c = a.scale(random_float());
   Cmat d = cadd(a, c);
   Cmat e = cmul(a, b);
   a.del();
@@ -153,5 +175,6 @@ int main() {
   c.del();
   d.del();
   e.del();
+  }
   return 0;
 }

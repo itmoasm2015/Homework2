@@ -202,14 +202,15 @@ section .text
         mov r10, rcx
         imul r10, rdx                   ; Count a size
         mov rcx, 0
+        movss xmm2, xmm0
+
+        shufps xmm2, xmm2, 0            ; Create the 4-vector of k
+
         .loop2:
             add rcx, 4
             cmp rcx, r10
             jnle .loopFinish2
             movups xmm1, [rdi + 4 * (rcx - 2)]  ; Move packed data
-            movss xmm2, xmm0
-            unpcklps xmm2, xmm2                 
-            unpcklps xmm2, xmm2                 ; Create the vector of k
             mulps xmm1, xmm2                    ; Multiply vectors
             movups [rax + 4 * (rcx - 2)], xmm1  ; Return result
             jmp .loop2

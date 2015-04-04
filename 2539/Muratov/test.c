@@ -18,26 +18,28 @@ void printMatrix(Matrix c) {
 	printf("%s\n", "-------------");	
 }
 
+
 int main(int argc, char const *argv[])
 {
 
-	Matrix a = matrixNew(56, 6);
-	Matrix b = matrixNew(6, 11);
+	Matrix a = matrixNew(4, 4);
+	Matrix b = matrixNew(4, 4);
+	//Matrix b = matrixNew(100, 100);
 	for (int i = 0; i < matrixGetRows(a); i++) {
 		for (int j = 0; j < matrixGetCols(a); j++) {
-			printf("%d ", (i + 5));		
+			//printf("%d ", (i + 5));		
 			matrixSet(a, i, j, (float) (i + 5));		
 		}
-		printf("\n");
+	//	printf("\n");
 	}
 	for (int i = 0; i < matrixGetRows(b); i++) {
 		for (int j = 0; j < matrixGetCols(b); j++) {
-			matrixSet(b, i, j, (float) 10);		
+			matrixSet(b, i, j, (float) 1.);		
 		}
 	}
 	printMatrix(a);
 	printMatrix(b);
-	Matrix c = matrixMul(a, b);
+	Matrix c = matrixScale(a, 44.);
 	//Matrix c = matrixNew(9, 13);
 	printf("\n%d\n-----", (int) c);
 	printMatrix(c);	

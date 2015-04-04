@@ -33,12 +33,14 @@ section .text
 ;Structure stores in memory:
 ;|rows|cols|alligned_rows|alligned_cols|matrix|
 ;Matrix real size is alligned_rows * alligned_cols bytes
-
+;Matrix is represented by rows 
+;| row #1 | row #2 | row #3 | ....... |
     
 ;rdi - rows, rsi - columns
 ;returns pointer to the new matrix in rax
 matrixNew:
     ;allocating memory with void* calloc(size_t num, size_t size)
+    ;calloc fills allocated memory with zeroes
     mov r8, rdi
     mov r9, rsi
     align4 r8
@@ -112,7 +114,7 @@ matrixScale:
     ;xmm0 = - - k k
     unpcklps xmm0, xmm0
     ;xmm0 = k k k k
-
+    
     ;creating new matrix
     sub rsp, 16
     movups [rsp], xmm0
@@ -133,8 +135,8 @@ matrixScale:
     xor r8, r8
     mov r8d, [rsi + 8]
     imul r8d, dword [rsi + 12]
+    add r8d, 4
     imul r8d, 4
-
     ;r9 - runs from 16 to r8 with step 16
     mov r9, 16
 
@@ -172,6 +174,7 @@ matrixAdd:
     xor r8, r8
     mov r8d, [rsi + 12]
     imul r8d, dword [rsi + 8]
+    add r8d, 4
     imul r8d, 4
 
     ;r9 - runs from 16 to r8 with step 16

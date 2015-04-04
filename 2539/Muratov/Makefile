@@ -1,5 +1,5 @@
-#makeall: clean test
-makeall: clean libhw.a
+makeall: clean test
+#makeall: clean libhw.a
 
 test: test.o libhw.a
 	gcc -Wall -msse -g -std=c99 -o $@ $^ 

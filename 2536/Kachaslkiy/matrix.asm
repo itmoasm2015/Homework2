@@ -194,7 +194,7 @@ matrixScale:
 ; returns: rax - new Matrix
 
 matrixAdd:
-	; check if Matrixs can be added
+	; check if Matrix can be added
 	mov r8, [rdi + rows]
 	mov r9, [rsi + rows]
 	cmp r8, r9
@@ -355,6 +355,6 @@ matrixMul:
 	pop rbp ; restore callee saved registers
 	pop rbx
 	ret
-.failure: ; matrices can not be multiplied, return 0
+.failure: ; matrix can not be multiplied, return 0
 	xor rax, rax
 	ret

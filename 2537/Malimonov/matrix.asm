@@ -14,6 +14,7 @@ global matrixScale
 global matrixAdd
 global matrixMul
 global matrixCopy
+global matrixTranspose
 
 SIZE_OF_FLOAT EQU 4
 
@@ -43,7 +44,7 @@ SIZE_OF_FLOAT EQU 4
 struc Matrix
     cells           resq 1 ; pointer to float array
     rows            resq 1 ; original number of rows
-    columns         resq 1 ; original number of cols
+    cols         resq 1 ; original number of cols
     aligned_rows    resq 1 ; aligned number of rows
     aligned_cols    resq 1 ; aligned number of cols
 endstruc
@@ -101,13 +102,13 @@ matrixCopy:
 
     mov rcx, [rax + aligned_rows]
     imul rcx, [rax + aligned_cols]
-
-    pop rbx
+    
     mov rdi, [rax + cells] ; cells of the copy
     mov rsi, [rbx + cells] ; cells of the original
 
     rep movsd ; move values cell-by-cell from the original to the copy
     mov rdi, rbx    
+    pop rbx
 
     ret
 
@@ -228,8 +229,8 @@ matrixAdd:
                             ;the resulting matrix
 
     ;move the pointers by 4 * sizeof float forward
-    add r8, 16
-    add r9, 16
+    add r8, 4 * SIZE_OF_FLOAT
+    add r9, 4 * SIZE_OF_FLOAT
     sub rcx, 4              ; 4 more cells processed, repeat
     jnz .add_loop           ; until we've processed everything
     jmp .return
@@ -336,24 +337,24 @@ matrixMul:
     mov r8, [rdi + cells] ; cells of the first matrix
     mov r9, [rbp + cells] ; cells of the second matrix transposed
     mov r14, [rax + cells] ; cells of the resulting matrix
-    mov r10, [rsi + aligned_cols] ;?
-    mov r11, [rdi + aligned_rows] ;?
+    mov r10, [rbp + aligned_rows] 
+    mov r11, [rdi + aligned_rows]  
 
     mov rdx, [rdi + aligned_cols]
-    shl rdx, 2 ;
+    shl rdx, 2 ; byte size of one row
 
     mov rsi, r9
     mov rdi, r10
 
-.l1:
+.outer:
     mov r10, rdi
     mov r9, rsi
 
-.l2:
-    xor r15, r15 ; 
-    xorps xmm0, xmm0 ;
+.inner:
+    xor r15, r15 ; moved elements counter for this iteration
+    xorps xmm0, xmm0 ; a register to store the sum over this iteration
 
-.l3:
+.sum:
     movups xmm1, [r8 + r15] ; XMM1 = A:B:C:D
     movups xmm2, [r9 + r15] ; XMM2 = E:F:G:H
     mulps xmm1, xmm2        ; XMM1 = A*E:B*F:C*G:D*H
@@ -362,18 +363,18 @@ matrixMul:
     addss xmm0, xmm1        ; add XMM1 to XMM0
     add r15, 4 * SIZE_OF_FLOAT ; move pointer
     cmp r15, rdx            ; check if the line has been processed
-    jl .l3
+    jl .sum
 
     add r9, rdx
     movss [r14], xmm0 ; move result to new matrix cell
-    add r14, 4
+    add r14, SIZE_OF_FLOAT
     dec r10
-    jnz .l2 ; r10 == 0 means we've processed a line
-            ; and we can proceed to the next line of the first matrix
+    jnz .inner   ; r10 == 0 means we've processed a line
+                 ; and we can proceed to the next line of the first matrix
 
     add r8, rdx
     dec r11
-    jnz .l1 ; r11 == 0 means we've processed everything and can finish
+    jnz .outer ; r11 == 0 means we've processed everything and can finish
 
     push rax
     mov rdi, rbp

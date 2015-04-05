@@ -299,6 +299,7 @@ matrixMul:
 ;in->rdi = pointer to matrix A
 ;out<-rax = pointer to transposed matrix At
 matrixTranspose:
+    push rbx
     push rsi 
     push rdi
     push r10 ; save some registers which was used before
@@ -340,6 +341,7 @@ matrixTranspose:
     pop r10
     pop rdi
     pop rsi
+    pop rbx
     ret
 ;????
 ;PROFIT!

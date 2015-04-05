@@ -28,11 +28,16 @@ Matrix randomMatrix(int rows, int cols, int param) {
 
 int main() {
 	Matrix a = randomMatrix(2, 2, 1);
+	
+	
 	Matrix b = randomMatrix(2, 2, 7);
-	Matrix c = matrixMul(a, b);
+	Matrix c = matrixScale(a, 2.22);
+	
 	printMatrix(a);
 	printMatrix(b);
 	printMatrix(c);
+	float z = matrixGet(a, 0, 0);
+	printf("%f \n", z);
 	
 return 0;
 }

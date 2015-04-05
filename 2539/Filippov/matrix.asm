@@ -28,20 +28,20 @@ section .text
     shl rax, 2              ; RAX = (x * m + y + 2) * 4, (%1 + RAX) is address of cell in memory
 %endmacro
 
-; creates new matrix by other one and fills it zeroes
+; creates new matrix by other one and fills it with zeroes
 ; %1 -- pointer to matrix
 ; returns pointer to new matrix, storing in RAX
 %macro createNewMatrix 1 
     push %1                 ; saving matrix -- %1
-    push rsi                ; RSI may be pointer to matrix in some functions
-    push rdi                ; RDI may be pointer to matrix in some functions
+    push rsi                ; RSI may be pointer to matrix in some functions, we must save it
+    push rdi                ; RDI may be pointer to matrix in some functions, we must save it
     xor rcx, rcx            ; 
     mov ecx, [%1]           ; [%1] is number of rows, so [RCX] = n
     xor rsi, rsi            ; [%1 + 4] is number of columns, saving it to RSI
     mov esi, [%1 + 4]       ; 
     mov rdi, rcx            ; saving number of rows ([%1]) to RDI
-    ; now we have number of rows in RDI, number of columns in RSI, can call matrixNew
-    call matrixNew          ; matrixNew(RDI, RSI) creates new matrix stored in RAX
+    ; now we have number of rows in RDI, number of columns in RSI, so we can call matrixNew
+    call matrixNew          ; matrixNew(RDI, RSI) creates new matrix storing in RAX
     pop rdi                 ; restoring RDI
     pop rsi                 ; restoring RSI
     pop %1                  ; restoring matrix
@@ -60,13 +60,13 @@ section .text
 %endmacro    
 
 ; Matrix matrixNew(int n, int m)
-; Creates new matrix with n rows and m columns, filled with zeroes
+; Creates new matrix with n rows and m columns and fills it with zeroes
 ; RDI -- n
 ; RSI -- m
-; Stores matrix as (n * m + 2) * 4 consecutive bytes in memory -- first 8 is n and m,
+; Stores matrix as (n * m + 2) * 4 consecutive bytes in memory -- first 8 is n and m respectively,
 ; other are matrix
-; cell (x, y) encoded to (x * m + y + 8) cell in memory
-; return pointer to matrix storing in RAX
+; cell (x, y) -> cell (x * m + y + 8) in memory
+; returns pointer to matrix storing in RAX
 ; saves RDI, RSI
 matrixNew:
     mov r8, rdi             ; R8 = n
@@ -77,7 +77,7 @@ matrixNew:
 
     push rdi                ;
     push rsi                ; saving registers
-    mov rdi, r8             ; parameter of malloc should be in rdi
+    mov rdi, r8             ; parameter of malloc should be in RDI
     push r8                 ;
     push r10                ;
     call malloc             ; allocating memory for matrix
@@ -124,10 +124,10 @@ matrixGetCols:
 ; matrix -- RDI
 ; x -- RSI
 ; y -- RDX
-; returns value storing in XMM0
+; returns matrix[x][y] storing in XMM0
 matrixGet:
-    encodeCell rdi, rsi, rdx            ; encoded cell address in (RDI + RAX) now
-    movss xmm0, dword [rdi + rax]       ; answer in XMM0
+    encodeCell rdi, rsi, rdx            ; encoded cell address is in (RDI + RAX) now
+    movss xmm0, dword [rdi + rax]       ; answer is in XMM0
     ret
 
 ; void matrixSet(Matrix matrix, unsigned int x, unsigned int y, float value)
@@ -136,7 +136,7 @@ matrixGet:
 ; y -- RDX
 ; value -- XMM0
 matrixSet:
-    encodeCell rdi, rsi, rdx            ; encoded cell address in (RDI + RAX) now
+    encodeCell rdi, rsi, rdx            ; encoded cell address is in (RDI + RAX) now
     movss dword [rdi + rax], xmm0       ; moving value (XMM0) to this address
     ret
 
@@ -164,10 +164,10 @@ matrixScale:
     ja .multiply_remaining_cells    ; if it is out of bound of matrix, we need to multiply remaining cells
     ; address of cell equals to [RDI + (R8 - 4) * 4 + 8] = [RDI + (R8 - 2) * 4]
     sub r8, 2                       ; so, we will subtract 2 from R8 (and add it at the end!)
-    movups xmm2, [rdi + r8 * 4]     ; moving number at cell in R8 to XMM2
+    movups xmm2, [rdi + r8 * 4]     ; moving number at cell we are now at to XMM2
     mulps xmm2, xmm1                ; multiplying, using vector operation
     movups [rax + r8 * 4], xmm2     ; moving back, but now to RAX (new matrix)
-    add r8, 2                       ; adding 2 back to R8
+    add r8, 2                       ; adding 2 to R8 after subtracting
     jmp .split_by_4_cells           ; let's continue multiplying
 .multiply_remaining_cells:           
     sub r8, 4                       ; R8 -= 4 - now it points to cell we are now at
@@ -184,7 +184,7 @@ matrixScale:
     ret
 
 ; Matrix matrixAdd(Matrix a, Matrix b)
-; returns pointer to new matrix -- sum of these two matrix
+; returns pointer to new matrix -- sum of these two matrixes
 ; if their sizes are wrong, returns 0
 ; a -- RDI
 ; b -- RSI
@@ -204,14 +204,12 @@ matrixAdd:
     jne .wrong_sizes
 
     ; all is ok, we must find sum
-    push rsi                        ; RSI should be saved -- createNewMatrix changes it
     createNewMatrix rdi             ; new matrix, storing in RAX
-    pop rsi                         ; restoring RSI
 
     ; we will sum groups of 4 cells
     ; and then sum remained cells
-    matrixSize rdi          ; now RCX = n * m
-    xor r8, r8              ; cell number we are now at
+    matrixSize rdi                  ; now RCX = n * m
+    xor r8, r8                      ; cell number we are now at
 .split_by_4_cells:
     add r8, 4                       ; now cell (R8) += 4
     cmp r8, rcx                         
@@ -222,7 +220,7 @@ matrixAdd:
     movups xmm1, [rsi + r8 * 4]     ; moving number at cell in second matrix to XMM1
     addps xmm0, xmm1                ; adding, using vector operation
     movups [rax + r8 * 4], xmm0     ; moving back, but now to RAX (new matrix)
-    add r8, 2                       ; adding 2 back to R8
+    add r8, 2                       ; adding 2 to R8 after subtracting it
     jmp .split_by_4_cells           ; let's continue adding
 .sum_remaining_cells:           
     sub r8, 4                       ; R8 -= 4 - now it points to cell we are now at
@@ -233,7 +231,7 @@ matrixAdd:
     movss xmm1, [rsi + r8 * 4]      ; moving old value from second matrix to XMM1
     addss xmm0, xmm1                ; adding, scalar operation
     movss [rax + r8 * 4], xmm0      ; moving result to RAX
-    add r8, 3                       ; restoring R8 and next cell (it is R8 += 2, R8 += 1)
+    add r8, 3                       ; restoring R8 and going to next cell (it is R8 += 2, R8 += 1)
     jmp .sum_remaining_cells
 .wrong_sizes:
     xor rax, rax                    ; wrong sizes of matrixes, returning 0
@@ -379,8 +377,9 @@ matrixMul:
     add rdx, 5                      ; RDX += 4 + 1 - next cell
     jmp .multiply_remaining_cells
 .finish_row:
-    haddps xmm2, xmm2               ; finding sum of elements of XMM2 
-    haddps xmm2, xmm2               ;
+                                    ; xmm2 = (t1, t2, t3, t4)
+    haddps xmm2, xmm2               ; xmm2 = (t1 + t2, t3 + t4, t1 + t2, t3 + t4) 
+    haddps xmm2, xmm2               ; xmm2 = ((t1 + t2 + t3 + t4) <4 times>)
     addss xmm3, xmm2                ; adding it to XMM3
 
     push rax                        ; RAX is pointer to result matrix, we need to save it

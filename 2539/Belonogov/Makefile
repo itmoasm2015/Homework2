@@ -1,5 +1,5 @@
 CFLAGS=-g 
-CXXFLAGS=-g -std=c++11 -fsanitize=address
+CXXFLAGS=-g -std=c++11 -fsanitize=address -O2
 YASM=yasm
 YFLAGS=-f elf64 -g dwarf2
 AR=ar rcs

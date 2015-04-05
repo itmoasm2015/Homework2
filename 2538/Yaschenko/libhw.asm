@@ -70,20 +70,19 @@ matrixNew:
 	ret
 
 
-
-
 ;; void matrixDelete(Matrix matrix);
 ;;
 ;; Deletes matrix.
 ;; Takes:
 ;;	* RDI: pointer to matrix to be deleted.
 matrixDelete:
-	push rdi
-	mov rdi, [rdi + Matrix.data]
-	call free						; Delete data.
-	pop rdi
-	call free						; Delete matrix struct.
+	push	rdi
+	mov	rdi, [rdi + Matrix.data]
+	call	free						; Delete data.
+	pop	rdi
+	call	free						; Delete matrix struct.
 	ret
+
 
 ;; unsigned int matrixGetRows(Matrix matrix);
 ;;

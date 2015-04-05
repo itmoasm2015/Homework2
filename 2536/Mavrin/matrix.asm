@@ -26,11 +26,11 @@ global matrixTranspose
 
 %macro getElement 3 ; (matrix, row, column)
     imul %2, [%1+alignedColumns]
-    add %2, %3
-    shl %2, 2
+    add %2, %3 
+    shl %2, 2 ; adress = 4*(row*alColumns + column)
   
     mov rax, [%1 + elements]
-    add rax, %2
+    add rax, %2;return (elements+adress) = pointer to required value
 %endmacro
 
 ;we need to reserve some memory for getting elemets and properties of matrix

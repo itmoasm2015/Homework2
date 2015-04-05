@@ -108,11 +108,12 @@ matrixGet:
 
 	add r9, 3			;	выравниваем ширину. Высоту в данной функции можно не выравнивать.
 	and r9, ~3
-
+	
+	mov r10, rdx  ; запомним cols
 	xor rdx, rdx
 	mov rax, r9		; ищем координату нужного элемента в линейной памяти
 	mul rsi
-	add rax, rdx
+	add rax, r10
 
 	movss xmm0, [rdi + rax * 4 + 16]	; записываем его в ответ. 
 																		; Он типа float, поэтому в xmm0 и используя movss.
@@ -132,10 +133,11 @@ matrixSet:
 	add r9, 3						; выравниваем ширину. Высоту тут тоже не надо выравнивать.
 	and r9, ~3
 
+	mov r10, rdx				; запомним cols
 	xor rdx, rdx				
 	mov rax, r9					; ищем координату нужного элемента в линейной памяти.
 	mul rsi
-	add rax, rdx
+	add rax, r10
 
 	movss dword[rdi + rax * 4 + 16], xmm0	; и записываем его туда.
 

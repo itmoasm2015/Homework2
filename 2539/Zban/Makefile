@@ -1,4 +1,4 @@
-CXXFLAGS=-g
+CXXFLAGS=-g -O2
 
 OBJS=test.o libhw.o CMatrix.o
 

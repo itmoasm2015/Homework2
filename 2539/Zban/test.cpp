@@ -2,6 +2,7 @@
 #include <iostream>
 #include <algorithm>
 #include <math.h>
+#include <time.h>
 #include "libhw.h"
 #include "CMatrix.h"
 
@@ -139,6 +140,27 @@ void test2() {
     matrixDelete(b);
 }
 
+void testTime() {
+    int n = 1000, m = 1000;
+    CMatrix a(n, m);
+    Matrix b = matrixNew(n, m);
+    for (int i = 0; i < n; i++) for (int j = 0; j < m; j++) {
+        int x = Rand();
+        a[i][j] = x;
+        matrixSet(b, i, j, x);
+    }
+
+    time_t start = clock();
+    CMatrix a1 = a * a;
+    printf("%.3lf\n", (clock() - start) / (double)CLOCKS_PER_SEC);
+    start = clock();
+    Matrix b1 = matrixMul(b, b);
+    printf("%.3lf\n", (clock() - start) / (double)CLOCKS_PER_SEC);       
+    printf("%d\n", equals(a1, b1));
+    matrixDelete(b);
+    matrixDelete(b1);
+}
+
 int main()
 {
     CMatrix a(2, 2);
@@ -184,6 +206,22 @@ int main()
     check(a, b1);
     matrixDelete(b);
     matrixDelete(b1);
+
+    b = matrixNew(1, 1);
+    b1 = matrixNew(2, 2);
+    printf("%d\n", matrixMul(b, b1) == NULL);
+    matrixDelete(b);
+    matrixDelete(b1);
+
+    printf("%d\n", matrixNew(1000000, 1000000) == NULL);
+
+    b = matrixNew(1000000, 1);
+    b1 = matrixNew(1, 1000000);
+    printf("%d\n", matrixMul(b, b1) == NULL);
+    matrixDelete(b);
+    matrixDelete(b1);
+    
+    testTime();
 
     return 0;
 }

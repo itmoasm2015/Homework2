@@ -9,8 +9,8 @@ global matrixDelete     ;done
 global matrixGetRows    ;done
 global matrixGetCols    ;done
 global matrixGet        ;done
-global matrixSet
-global matrixScale
+global matrixSet        ;done
+global matrixScale      ;done
 global matrixAdd
 global matrixMul
 
@@ -240,4 +240,56 @@ matrixScale:
     sub rcx, 4                ; keep scaling by 4 cells
     jnz .mul_loop
 
+    ret
+
+;Matrix matrixAdd(Matrix a, Matrix b)
+;Creates a new matrix c = a + b
+;args:      RDI - pointer to the matrix a
+;           RSI - pointer to the matrix b
+;returns:   RAX - pointer to the new matrix
+matrixAdd:
+    push rdi
+    push rsi
+
+    ; check matrices' dimensions
+    mov r8, [rdi + cols]
+    mov r9, [rsi + cols]
+    cmp r8, r9
+    jne .incompatible
+    
+    mov r8, [rdi + rows]
+    mov r9, [rsi + rows]
+    cmp r8, r9
+    jne .incompatible
+
+    call matrixCopy         ; copy the matrix a
+
+    pop rsi
+    pop rdi
+
+    mov rcx, [rax + aligned_rows]
+    imul rcx, [rax + aligned_cols] ; calculate the number of cells
+
+    mov r8, [rax + cells]   ; pointer to the cells of the result/copy
+    mov r9, [rsi + cells]   ; pointer to the cells of the matrix b
+
+.add_loop:
+    movups xmm0, [r8]       ; load 4 cells of both matrix and sum them
+    movups xmm1, [r9]
+    addps xmm0, xmm1
+    movups [r8], xmm0       ; store the result in first matrix's copy
+
+    add r8, 4 * SIZE_OF_FLOAT
+    add r9, 4 * SIZE_OF_FLOAT
+    
+    sub rcx, 4              ; keep processing by 4 cells
+    jnz .add_loop 
+    jmp .return
+
+.incompatible:
+    pop rsi
+    pop rdi
+    mov rax, 0
+
+.return:
     ret

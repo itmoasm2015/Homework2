@@ -127,15 +127,16 @@ matrixScale:
         add     rcx, 4 ; Ибо 4 float-а за раз
         cmp     rcx, rbx
         jl      .loop
-    sub     rcx, 4  ;откатываемся назад, чтобы узнать какие ячейки мы не забили
-    ; Осталось ячеек rbx - rcx штук, [rdi + 8 + rcx * 4] - начало первой
     .rest:
+        sub     rcx, 4  ;откатываемся назад, чтобы узнать какие ячейки мы не забили
+        ; Осталось ячеек rbx - rcx штук, [rdi + 8 + rcx * 4] - начало первой
+    .rest1:
         movss   xmm1, [rdi + 8 + rcx * 4] ; адрес недобработанной ячейки
         mulss   xmm1, xmm2
         movss   [rax + 8 + rcx * 4], xmm1 ; Адрес соответствующей ячейки в новой матрице
         inc     rcx
         cmp     rcx, rbx
-        jne     .rest
+        jne     .rest1
     .continue:
     pop     rcx
     pop     rbx
@@ -179,16 +180,17 @@ matrixAdd:
         add     rcx, 4 ; Ибо 4 float-а за раз
         cmp     rcx, rbx
         jl      .loop
+    .rest:
     sub     rcx, 4  ;откатываемся назад, чтобы узнать какие ячейки мы не забили
     ; Осталось ячеек rbx - rcx штук, [rdi + 8 + rcx * 4] - начало первой
-    .rest:
+    .rest1:
         movss   xmm1, [rdi + 8 + rcx * 4] ; адрес недобработанной ячейки
         movss   xmm2, [rsi + 8 + rcx * 4]
         addss   xmm1, xmm2
         movss   [rax + 8 + rcx * 4], xmm1 ; Адрес соответствующей ячейки в новой матрице
         inc     rcx
         cmp     rcx, rbx
-        jne     .rest
+        jne     .rest1
     pop     rcx
     pop     rbx
     jmp     .return ;если мы тут, значит все прошло хорошо, значит нужно обойти присвоение ответу null
@@ -309,18 +311,19 @@ matrixMul:
                 add     r13, 16
                 cmp     r14, r9
                 jl      .loop
-            sub     r14, 4  ;откатываемся назад, чтобы узнать какие ячейки мы не забили
-            ; Осталось ячеек rbx - rcx штук, [rdi + 8 + rcx * 4] - начало первой
             .rest:
-                movss   xmm2, [r12] ; адрес недобработанной ячейки
-                movss   xmm3, [r13]
+                sub     r14, 4  ;откатываемся назад, чтобы узнать какие ячейки мы не забили
+                ; Осталось ячеек rbx - rcx штук, [rdi + 8 + rcx * 4] - начало первой
+            .rest1:
+                movss   xmm2, dword[r12] ; адрес недобработанной ячейки
+                movss   xmm3, dword[r13]
                 mulss   xmm2, xmm3
                 addps   xmm1, xmm2
                 inc     r14
                 add     r12, 4
                 add     r13, 4
                 cmp     r14, r9
-                jne     .rest
+                jne     .rest1
             ; Теперь сложим все значения xmm0 и xmm1
             haddps  xmm0, xmm0
             haddps  xmm0, xmm0 ;тут надо сделать два раза, потому что эта забавная операция очень хитрая)

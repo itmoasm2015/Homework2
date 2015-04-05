@@ -202,3 +202,15 @@ matrixGet:
     get_cell_pointer
     movss xmm0, [rax]
     ret
+
+;void matrixSet(Matrix matrix, unsigned int row, unsigned int col, float value)
+;Sets the value of the cell
+;args:      RDI  - pointer to matrix
+;           RSI  - row index
+;           RDX  - column index
+;           XMM0 - desired cell's value 
+;returns:   void
+matrixSet:
+    get_cell_pointer
+    movss [rax], xmm0
+    ret

@@ -14,11 +14,12 @@ global matrixScale
 global matrixAdd
 global matrixMul
 
+
 ;cells are stored 'as is', but matrix rows are aligned by 4 to use cells in SSE instructions
 ;struct matrix_t {
 ;   const uint64_t rows, cols;   //real size of matrix
 ;   const uint64_t aligned_rows, aligned_cols; //aligned size
-;   float data[rows * aligned_cols];
+;   float data[aligned_rows * aligned_cols];
 ;}
 ;typdef matrix_t* Matrix;
 ;unused cells are filled with zeros
@@ -54,9 +55,8 @@ endstruc
 %endmacro
 
 %macro align_by_4 1 ;((x + 3) / 4) * 4
-    add %1, 3
-    shr %1, 2
-    shl %1, 2
+    add     %1, 3
+    and     %1, ~3 
 %endmacro
 
 ;Matrix matrixNew(uint64_t rows, uint64_t cols);
@@ -203,10 +203,10 @@ matrixAdd:
     mov     r8, [rax + data]    ;source
     mov     r9, [rsi + data]    ;dist
 .loop:                          ;rcx - loop (cells) counter
-    movaps xmm0, [r8]
-    movaps xmm1, [r9]
+    movups xmm0, [r8]
+    movups xmm1, [r9]
     addps xmm0, xmm1
-    movaps [r8], xmm0           ; A += B
+    movups [r8], xmm0           ; A += B
     add     r8, 4*4             ;we've read 4*4 bytes
     add     r9, 4*4             ;we've read 4*4 bytes
     sub     rcx, 4              ;and proceed 4 floats
@@ -250,7 +250,7 @@ matrixTranspose:
         lea       rdi, [rdi + r10 * 4] 
         extractps [rdi], xmm0, 3    ;[rdi] = D
 
-        lea     rdi, [r13 + r10 * 4]
+        lea     rdi, [rdi + r10 * 4]
         add     r8, 4*4             ;we've read 4*4 bytes
         add     rsi, 4              ;and proceed 4 floats
         cmp     rsi, r11 

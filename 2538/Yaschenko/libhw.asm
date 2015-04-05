@@ -188,7 +188,7 @@ matrixScale:
 
 ;; Matrix matrixAdd(Matrix a, Matrix b);
 ;;
-;; Multiplies matrix A by matrix B and returns pointer to resulting
+;; Adds matrix B to matrix A and returns pointer to resulting
 ;; matrix C. If A's and B's dimensions are not equal, returns 0.
 ;; Takes:
 ;;	* RDI: pointer to matrix A.
@@ -227,7 +227,7 @@ matrixAdd:
 	movups	xmm0, [r8]
 	addps	xmm0, [r9]
 	movups	[r10], xmm0
-	add	rdx, 4 * 4
+	add	rdx, 4
 	add	r8,  4 * 4
 	add	r9,  4 * 4
 	add	r10, 4 * 4

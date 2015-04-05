@@ -116,7 +116,7 @@ matrixScale:
     xor         rsi, rsi
     mov         edi, [r8 + ROWS]
     mov         esi, [r8 + COLS]
-    movd        r9, xmm0
+    movd        r9, xmm0 ;save some registers
     push        r9
     push        r8  
     call        matrixNew
@@ -139,16 +139,16 @@ matrixScale:
     imul        r8d, [rsi + ALIGN_COLS]
     add         r8d, 4
     imul        r8d, 4
-    ;r8 - number of elements in matrix multiplied by 4
+    ;r8 - number of elements in matrix multiplied by 4 ((ALIGN_COLS * ALIGN_ROWS + 4) * 4)
 
-    mov         rcx, MATRIX ; calculating pointer to matrix
+    mov         rcx, MATRIX ;pointer to matrix elements
     
     .scaling_loop:
         movups      xmm1, [rsi + rcx]
         mulps       xmm1, xmm0
         movups      [rax + rcx], xmm1
         add         rcx, 16
-        cmp         r8, rcx
+        cmp         r8, rcx ;if all elements calculated ((ALIGN_COLS * ALIGN_ROWS + 4) * 4 == rcx) then break
     jne .scaling_loop
 
     jmp .scale_end
@@ -190,7 +190,7 @@ matrixAdd:
     add         r8d, 4
     imul        r8d, 4  ;r8 = (ALIGN_COLS * ALIGN_ROWS + 4) * 4
 
-    mov         rcx, MATRIX ; calculating pointer to matrix
+    mov         rcx, MATRIX ;pointer to matrix elements
     
     .add_loop:
         movups      xmm0, [rsi + rcx]
@@ -224,7 +224,7 @@ matrixMul:
 
     ;creating new matrix
     push        rdi
-    push        rsi
+    push        rsi    
     mov         esi, [rsi + COLS]
     mov         edi, [rdi + ROWS]
     call        matrixNew
@@ -234,7 +234,7 @@ matrixMul:
     cmp         rax, 0 ; can't create new matrix
     je          .multiply_error
     
-    mov         r15, rax ;save rax
+    mov         r15, rax ;save rax to return it later
     xor         r8, r8
     mov         r8d, [rax + ALIGN_ROWS]
     imul        r8d, [rax + ALIGN_COLS]
@@ -248,13 +248,12 @@ matrixMul:
     mov         r13d, [rdi + ALIGN_COLS] ; r13 - number of rows in first matrix and number of columns in second multiplied by 4
     imul        r13, 4
 
-    ;making matrix pointers
+    ;making pointers to matrix elements
     add         rdi, MATRIX
     add         rsi, MATRIX
     add         rax, MATRIX 
-    
-    ; r11 - current column in new array
-    xor         r11, r11
+        
+    xor         r11, r11 ;current column in new array
     .multiply_loop:
         xorps       xmm0, xmm0
         mov         rcx, r11

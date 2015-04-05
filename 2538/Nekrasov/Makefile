@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -Wall -O2 -Wextra -std=c++11 -m64 -L. -I. -g
+CFLAGS = -Wall -O2 -Wextra -std=c++11 -m64 -L. -I../../include -g
 
 all: tester
 

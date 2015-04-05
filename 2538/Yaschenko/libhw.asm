@@ -14,6 +14,13 @@ global matrixTranspose
 
 section .text
 
+;; Matrix is stored in struct with 5 members: ROWS, COLS, DATA, ROWS_ALIGNED and COLS_ALIGNED.
+;; ROWS and COLS store real rows and cols count.
+;; ROWS_ALIGNED and COLS_ALIGNED store aligned to next 4-divisible number to make it easy to
+;; work with SSE instructions, which process by 4 numbers at once.
+;; DATA stores pointer to memory, allocated with calloc.
+;; Elements in DATA are stored as in 2-dimensional array, so element in i'th row j'th column
+;; has index i * COLS + j in DATA array.
 struc Matrix
 	.rows:		resq 1				; Rows count in matrix.
 	.cols:		resq 1				; Columns count in matrix.
@@ -44,8 +51,8 @@ matrixNew:
 	push	rsi
 
 ; Allocate memory for Matrix struct.
-	mov	rdi, 1
-	mov	rsi, Matrix_size
+	mov	rdi, 1					; count = 1
+	mov	rsi, Matrix_size			; sizeof(Matrix)
 	call	calloc
 	mov	rdx, rax
 

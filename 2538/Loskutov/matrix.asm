@@ -6,7 +6,8 @@
 %define cols_offset          4 ; cols (4 bytes)
 %define rows_aligned_offset  8 ; rows aligned to 8 bytes (4 bytes)
 %define cols_aligned_offset 12 ; cols aligned to 8 bytes (4 bytes)
-%define data_offset         16 ; float[rows_aligned * cols_aligned]
+                               ; 16 bytes empty, to ensure 32-byte alignment (hope it’ll help to make it work under MacOS)
+%define data_offset         32 ; float[rows_aligned * cols_aligned]
 
 default rel                    ; use rip-relative addressing
 
@@ -22,7 +23,6 @@ global matrixSet
 global matrixScale
 global matrixAdd
 global matrixMul
-global matrixTranspose ; lalka))
 
 section .text
 ; Matrix matrixNew(unsigned int rows, unsigned int cols)
@@ -42,7 +42,7 @@ matrixNew:
     push         rdi
     push         rsi
 
-    mov          rdi, 16
+    mov          rdi, 32
     mov          rsi, rax
     push         rax
     call         aligned_alloc                ; allocate the memory for the matrix

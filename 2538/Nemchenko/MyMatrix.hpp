@@ -18,9 +18,9 @@ public:
 
     unsigned int getCols() const;
 
-    double& operator()(unsigned int row, unsigned int col);
+    double* operator[](unsigned int row);
 
-    double operator()(unsigned int row, unsigned int col) const;
+    const double* operator[](unsigned int row) const;
 
     MyMatrix& operator*(float scale);
 

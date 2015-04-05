@@ -1,7 +1,7 @@
 #include <bits/stdc++.h>
 #include "matrix.h"
 
-const float EPS = 1e-4;
+const float EPS = 1e-2;
 
 class VectorMatrix {
         static const int maxn = 100;
@@ -191,9 +191,9 @@ public:
     }
 
     void testMulMatrix() {
-        unsigned n = rand() % 5 + 1;
-        unsigned m = rand() % 5 + 1;
-        unsigned k = rand() % 5 + 1;
+        unsigned n = rand() % maxn + 1;
+        unsigned m = rand() % maxn + 1;
+        unsigned k = rand() % maxn + 1;
         Matrix matrixA = matrixNew(n, m);
         Matrix matrixB = matrixNew(m, k);
         VectorMatrix vectorMatrixA;

@@ -8,7 +8,7 @@ AR=ar rcs
 all: test lib
 
 
-test: test.o matrix.o
+test: test.o hw_matrix.o
 	g++ $(CXXFLAGS) -o $@ $^
 
 %.o: %.asm

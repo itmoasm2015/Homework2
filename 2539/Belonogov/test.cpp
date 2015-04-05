@@ -12,7 +12,7 @@
 using namespace std;
 
 bool equal(float a, float b) {
-    bool res = abs(a - b) < 1e-4;
+    bool res = abs(a - b) < 1e-3;
     if (res == 0) cerr << "a b: " << a << " " << b << endl;
     return res;
 }
@@ -64,6 +64,12 @@ struct myMatrix {
             for (int j = 0; j < (int)data[i].size(); j++)
                 c.data[i][j] = data[i][j] * x;
         return c;
+    }
+    void printM() {
+        for (int i = 0; i < (int)data.size(); i++, cerr << endl)
+            for (int j = 0; j < (int)data[i].size(); j++)
+                cerr << data[i][j] << " ";
+        cerr << endl;
     }
 };
 
@@ -222,19 +228,24 @@ int main() {
 
     //// speed test
 
-    int n = 500;
-    int m = 500;
-    auto pr = getRandMatrix(n, m);
-    //auto pr = getRandMatrix(n, m);
+    int n = 5;
+    int m = 5;
+    auto p1 = getRandMatrix(n, m);
+    auto p2 = getRandMatrix(n, m);
     long long c1 = clock();
-    myMatrix r1 = pr.sc.mul(pr.sc);
+    myMatrix r1 = p1.sc.mul(p2.sc);
     cerr << (clock() - c1) * 1.0 / CLOCKS_PER_SEC << endl;
 
     long long c2 = clock();
-    Matrix r2 = matrixMul(pr.fr, pr.fr);
+    Matrix r2 = matrixMul(p1.fr, p2.fr);
     //cerr << r2 << endl;
     cerr << (clock() - c2) * 1.0 / CLOCKS_PER_SEC << endl;
+    printM(p1.fr);
+    printM(p2.fr);
     check(r2, r1); 
-    //printM(r2);
+    cerr << "=\n";
+    printM(r2);
+    r1.printM();
+    
 	return 0;
 }

@@ -241,6 +241,7 @@ matrixAdd:
 	xor	rax, rax
 	ret
 
+
 ;; Matrix matrixMul(Matrix a, Matrix b);
 ;;
 ;; Multplies matrix A by matrix B and returns pointer to resulting
@@ -251,75 +252,78 @@ matrixAdd:
 ;; Returns:
 ;;	* RAX: pointer to resulting matrix C.
 matrixMul:
-	mov rax, [rdi + Matrix.cols]
-	cmp rax, [rsi + Matrix.rows]
-	jne .bad_dims
+	mov	rax, [rdi + Matrix.cols]
+	cmp	rax, [rsi + Matrix.rows]
+	jne	.bad_dims
 
-	push rdi
-	mov rdi, rsi
-	call matrixTranspose
-	mov rsi, rax
-	pop rdi
+	push	rdi
+	mov	rdi, rsi
+	call	matrixTranspose
+	mov	rsi, rax
+	pop	rdi
 
-	push rdi
-	push rsi
-	mov rdi, [rdi + Matrix.rows]
-	mov rsi, [rsi + Matrix.rows]		; rows since it has been transposed
-	call matrixNew
-	mov rdx, rax
-	pop rsi
-	pop rdi
+	push	rdi
+	push	rsi
+	mov	rdi, [rdi + Matrix.rows]
+	mov	rsi, [rsi + Matrix.rows]		; rows since it has been transposed
+	call	matrixNew
+	mov	rdx, rax
+	pop	rsi
+	pop	rdi
 
-	mov r8, [rdi + Matrix.rowsAligned]
-	mov r9, [rdi + Matrix.colsAligned]
-	mov r10, [rsi + Matrix.rowsAligned]
+	mov	r8, [rdi + Matrix.rowsAligned]
+	mov	r9, [rdi + Matrix.colsAligned]
+	mov	r10, [rsi + Matrix.rowsAligned]
 
-	mov rdi, [rdi + Matrix.data]
-	mov rsi, [rsi + Matrix.data]
+	mov	rdi, [rdi + Matrix.data]
+	mov	rsi, [rsi + Matrix.data]
 
-	push r12
-	push r13
-	push r14
+	mov	rax, rdx
+	mov	rdx, [rax + Matrix.data]
 
-	xor r11, r11
+	push	r12
+	push	r13
+	push	r14
+
+	xor	r11, r11
 .loop_i:
-	xor r13, r13
+	xor	r13, r13
 .loop_j:
-	mov r12, r11
-	imul r12, r9
-	imul r12, 4
-	add r12, rdi
+	mov	r12, r11
+	imul	r12, r9
+	imul	r12, 4
+	add	r12, rdi
 
-	mov r14, r13
-	imul r14, r9
-	imul r14, 4
-	add r14, rsi
+	mov	r14, r13
+	imul	r14, r9
+	imul	r14, 4
+	add	r14, rsi
 
-	xor rcx, rcx
-	xorps xmm0, xmm0
+	xor	rcx, rcx
+	xorps	xmm0, xmm0
 .loop_k:
-	movups xmm1, [r12]
-	mulps xmm1, [r14]
-	haddps xmm1, xmm1
-	haddps xmm1, xmm1
-	addss xmm0, xmm1
+	movups	xmm1, [r12]
+	mulps	xmm1, [r14]
+	haddps	xmm1, xmm1
+	haddps	xmm1, xmm1
+	addss	xmm0, xmm1
 
-	add r12, 16
-	add r14, 16
-	add rcx, 4
-	cmp rcx, r9
-	jne .loop_k
+	add	r12, 4 * 4
+	add	r14, 4 * 4
+	add	rcx, 4
+	cmp	rcx, r9
+	jne	.loop_k
 
-	movss [rdx], xmm0
-	add rdx, 4
+	movss	[rdx], xmm0
+	add	rdx, 4
 
-	inc r13
-	cmp r13, r10
-	jne .loop_j
+	inc	r13
+	cmp	r13, r10
+	jne	.loop_j
 
-	inc r11
-	cmp r11, r8
-	jne .loop_i
+	inc	r11
+	cmp	r11, r8
+	jne	.loop_i
 
 	pop r14
 	pop r13

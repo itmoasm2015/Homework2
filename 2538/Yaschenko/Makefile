@@ -1,7 +1,7 @@
 ASM = yasm
 ASFLAGS = -f elf64
 
-CFLAGS = -Wall -I../../include -L.
+CFLAGS = -Wall -I. -L.
 
 all: main
 

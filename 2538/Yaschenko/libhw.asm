@@ -1,17 +1,5 @@
-section .bss
-	a:	resq 1
-	n:	resq 1
-	mn1:	resq 1
-	count:	resq 1
-	first:	resq 1
-	last:	resq 1
-	cycle:	resq 1
-
-section .text
-
-extern free
-extern malloc
 extern calloc
+extern free
 
 global matrixNew
 global matrixDelete
@@ -24,14 +12,31 @@ global matrixAdd
 global matrixMul
 global matrixTranspose
 
+section .text
 
+;; Matrix is stored in struct with 5 members: ROWS, COLS, DATA, ROWS_ALIGNED and COLS_ALIGNED.
+;; ROWS and COLS store real rows and cols count.
+;; ROWS_ALIGNED and COLS_ALIGNED store aligned to next 4-divisible number to make it easy to
+;; work with SSE instructions, which process by 4 numbers at once.
+;; DATA stores pointer to memory, allocated with calloc.
+;; Elements in DATA are stored as in 2-dimensional array, so element in i'th row j'th column
+;; has index i * COLS + j in DATA array.
 struc Matrix
-	.rows:		resq 1					; Rows count in matrix.
-	.cols:		resq 1					; Columns count in matrix.
-	.data:		resq 1					; Pointer to matrix elements.
-	.rowsAligned:	resq 1					; Aligned to 4 (up) rows count.
-	.colsAligned:	resq 1					; Aligned to 4 (up) columns count.
+	.rows:		resq 1				; Rows count in matrix.
+	.cols:		resq 1				; Columns count in matrix.
+	.data:		resq 1				; Pointer to matrix elements.
+	.rowsAligned:	resq 1				; Aligned to 4 (up) rows count.
+	.colsAligned:	resq 1				; Aligned to 4 (up) columns count.
 endstruc
+
+;; Performs x = ((x + 3) / 4) * 4.
+;; Finds next divisible by 4 number.
+%macro align_4 1
+	add	%1, 3
+	shr	%1, 2
+	shl	%1, 2
+%endmacro
+
 
 ;; Matrix matrixNew(unsigned int rows, unsigned int cols);
 ;;
@@ -42,44 +47,44 @@ endstruc
 ;; Returns:
 ;;	* RAX: pointer to newly created matrix.
 matrixNew:
-	push rsi
-	push rdi
-	mov rdi, Matrix_size
-	call malloc
-	pop rdi
-	pop rsi
+	push	rdi
+	push	rsi
 
-	mov [rax + Matrix.rows], rdi
-	mov [rax + Matrix.cols], rsi
+; Allocate memory for Matrix struct.
+	mov	rdi, 1					; count = 1
+	mov	rsi, Matrix_size			; sizeof(Matrix)
+	call	calloc
+	mov	rdx, rax
 
-	add rdi, 3
-	shr rdi, 2
-	shl rdi, 2
+	pop	rsi
+	pop	rdi
 
-	add rsi, 3
-	shr rsi, 2
-	shl rsi, 2
+; Fill matrix struct's ROWS and COLS members.
+	mov	[rdx + Matrix.rows], rdi
+	mov	[rdx + Matrix.cols], rsi
 
-	mov [rax + Matrix.rowsAligned], rdi
-	mov [rax + Matrix.colsAligned], rsi
+; Calc aligned to 4 matrix dimensions.
+	align_4	rdi
+	align_4	rsi
 
-	imul rdi, rsi
-	mov rcx, rdi
-	shl rdi, 2
+; Fill matrix struct's ROWS_ALIGNED and COLS_ALIGNED members.
+	mov	[rdx + Matrix.rowsAligned], rdi
+	mov	[rdx + Matrix.colsAligned], rsi
 
-	push rdx
-	push rcx
-	call malloc
-	pop rcx
-	pop rdx
+	push	rdx
 
-	mov [rdx + Matrix.data], rax
+; Allocate memory for elements of matrix.
+	imul	rdi, rsi				; ROWS_ALIGNED * COLS_ALIGNED elements.
+	mov	rsi, 4					; sizeof(float) - size of one element of matrix.
+	call	calloc
 
-	.zero_loop:
-		mov dword [rax + rcx * 4 - 4], 0
-		LOOP .zero_loop
+; Fill matrix struct's DATA member with newly allocated memory (from RAX).
+	pop	rdx
+	mov	[rdx + Matrix.data], rax
 
-	mov rax, rdx
+; Restore pointer to newly allocated matrix to RAX and return.
+	mov	rax, rdx
+
 	ret
 
 
@@ -89,12 +94,15 @@ matrixNew:
 ;; Takes:
 ;;	* RDI: pointer to matrix to be deleted.
 matrixDelete:
-	push rdi
-	mov rdi, [rdi + Matrix.data]
-	call free						; Delete data.
-	pop rdi
-	call free						; Delete matrix struct.
+; Free Matrix.data memory.
+	push	rdi
+	mov	rdi, [rdi + Matrix.data]
+	call	free
+; Free matrix struct memory.
+	pop	rdi
+	call	free
 	ret
+
 
 ;; unsigned int matrixGetRows(Matrix matrix);
 ;;
@@ -104,8 +112,9 @@ matrixDelete:
 ;; Returns:
 ;;	* RAX: number of rows in matrix A.
 matrixGetRows:
-	mov rax, [rdi + Matrix.rows]
+	mov	rax, [rdi + Matrix.rows]
 	ret
+
 
 ;; unsigned int matrixGetCols(Matrix matrix);
 ;;
@@ -115,37 +124,31 @@ matrixGetRows:
 ;; Returns:
 ;;	* RAX: number of columns in matrix A.
 matrixGetCols:
-	mov rax, [rdi + Matrix.cols]
+	mov	rax, [rdi + Matrix.cols]
 	ret
 
-;; Returns pointer element in A'th row B'th column in matrix M.
-;; Takes:
-;;	* RDI: pointer to matrix M.
-;;	* RSI: number of row A.
-;;	* RDX: number of column B.
-;; Returns:
-;;	* RAX: pointer to M[A][B].
-loadAddress:
-	imul rsi, [rdi + Matrix.colsAligned]				; Calculate index of [A][B]'th element as
-	add rsi, rdx						; A * M.cols + B
-	shl rsi, 2						; Multiply index by 4 (sizeof float) to get element's offset. 
-	mov rax, [rdi + Matrix.data]				; Calculate element's actual address.
-	add rax, rsi
-	ret
 
 ;; float matrixGet(Matrix matrix, unsigned int row, unsigned int col);
 ;;
-;; Returns element in A'th row B'th column in matrix M.
+;; Returns element in i'th row j'th column in matrix M.
 ;; Takes:
 ;;	* RDI: pointer to matrix M.
-;;	* RSI: number of row A.
-;;	* RDX: number of column B.
+;;	* RSI: number of row i.
+;;	* RDX: number of column j.
 ;; Returns:
-;;	* XMM0: element in M[A][B].
+;;	* XMM0: element in M[i][j].
 matrixGet:
-	call loadAddress
-	movss xmm0, [rax]
+; Calculate index of [i][j] element as Matrix.cols * i + j.
+	imul	rsi, [rdi + Matrix.colsAligned]
+	add	rsi, rdx
+; Multiply by sizeof(float) to get [i][j] element's offset.
+	shl	rsi, 2
+; Calculate real address of [i][j] element.
+	add	rsi, [rdi + Matrix.data]
+; Fill return value.
+	movss	xmm0, [rsi]
 	ret
+
 
 ;; void matrixSet(Matrix matrix, unsigned int row, unsigned int col, float value);
 ;;
@@ -156,9 +159,17 @@ matrixGet:
 ;;	* RDX: number of column B.
 ;;	* XMM0: new value V.
 matrixSet:
-	call loadAddress
-	movss [rax], xmm0
+; Calculate index of [i][j] element as Matrix.cols * i + j.
+	imul	rsi, [rdi + Matrix.colsAligned]
+	add	rsi, rdx
+; Multiply by sizeof(float) to get [i][j] element's offset.
+	shl	rsi, 2
+; Calculate real address of [i][j] element.
+	add	rsi, [rdi + Matrix.data]
+; Fill return value.
+	movss	[rsi], xmm0
 	ret
+
 
 ;; Matrix matrixScale(Matrix matrix, float k);
 ;;
@@ -170,38 +181,47 @@ matrixSet:
 ;; Returns:
 ;;	* RAX: pointer to resulting matrix.
 matrixScale:
-	push rdi
+	push	rdi
 
-	mov rsi, [rdi + Matrix.cols]
-	mov rdi, [rdi + Matrix.rows]
-	call matrixNew
-	pop rdi
+; Allocate new matrix with same dimensions.
+	mov	rsi, [rdi + Matrix.cols]
+	mov	rdi, [rdi + Matrix.rows]
+	call	matrixNew
 
-	push rax
+	pop	rdi
 
-	mov rcx, [rdi + Matrix.rowsAligned]
-	imul rcx, [rdi + Matrix.colsAligned]
-	sub rcx, 4
+; Make RDX hold total number of elements.
+	mov	rdx, [rdi + Matrix.rowsAligned]
+	imul	rdx, [rdi + Matrix.colsAligned]
 
-	unpcklps xmm0, xmm0					; Make xmm0 store vector of four K values.
+; Make XMM0 be a vector of 4 values K (K:K:K:K).
+	unpcklps xmm0, xmm0
 	unpcklps xmm0, xmm0
 
-	mov rdi, [rdi + Matrix.data]
-	mov rax, [rax + Matrix.data]
+; RSI holds address of source matrix to be scaled.
+; RDI holds address of dest matrix. 
+	mov	rsi, [rdi + Matrix.data]
+	mov	rdi, [rax + Matrix.data]
+; RCX holds number of already scaled elements.
+	xor	rcx, rcx
 
-	.loop
-		movups xmm1, [rdi + 4 * rcx]
-		mulps xmm1, xmm0
-		movups [rax + 4 * rcx], xmm1
-		sub rcx, 4
-		jns .loop
+.loop:
+	movups	xmm1, [rsi]
+	mulps	xmm1, xmm0
+	movups	[rdi], xmm1
+	add	rsi, 4 * 4				; Move RSI to next 4 elements.
+	add	rdi, 4 * 4				; Move RDI to next 4 elements.
+	add	rcx, 4
+	cmp	rcx, rdx
+	jne	.loop
 
-	pop rax
+.return:
 	ret
+
 
 ;; Matrix matrixAdd(Matrix a, Matrix b);
 ;;
-;; Multiplies matrix A by matrix B and returns pointer to resulting
+;; Adds matrix B to matrix A and returns pointer to resulting
 ;; matrix C. If A's and B's dimensions are not equal, returns 0.
 ;; Takes:
 ;;	* RDI: pointer to matrix A.
@@ -209,46 +229,60 @@ matrixScale:
 ;; Returns:
 ;;	* RAX: pointer to resulting matrix C.
 matrixAdd:
-	push rdi
-	push rsi
+; Check if matrix A and matrix B have equal number of rows to perform addition.
+	mov	rax, [rdi + Matrix.rows]
+	cmp	rax, [rsi + Matrix.rows]
+	jne	.bad_dims
 
-	mov rax, [rdi + Matrix.rows]
-	cmp rax, [rsi + Matrix.rows]
-	jne .bad_dims
+; Check if matrix A and matrix B have equal number of columns to perform addition.
+	mov	rax, [rdi + Matrix.cols]
+	cmp	rax, [rsi + Matrix.cols]
+	jne	.bad_dims
 
-	mov rax, [rdi + Matrix.cols]
-	cmp rax, [rsi + Matrix.cols]
-	jne .bad_dims
+	push	rdi
+	push	rsi
 
-	mov rsi, [rdi + Matrix.cols]
-	mov rdi, [rdi + Matrix.rows]
-	call matrixNew
+; Allocate matrix for result.
+	mov 	rsi, [rdi + Matrix.cols]
+	mov 	rdi, [rdi + Matrix.rows]
+	call	matrixNew
 
-	pop rsi
-	pop rdi
+	pop	rsi
+	pop	rdi
 
-	mov rcx, [rdi + Matrix.rowsAligned]
-	imul rcx, [rdi + Matrix.colsAligned]
-	sub rcx, 4
+; RCX holds total number of elements in matrix C. 
+	mov	rcx, [rdi + Matrix.rowsAligned]
+	imul	rcx, [rdi + Matrix.colsAligned]
 
-	mov r8, [rdi + Matrix.data]
-	mov r9, [rsi + Matrix.data]
-	mov r10, [rax + Matrix.data]
+	mov r8,	[rdi + Matrix.data]			; R8  points to current 4 elements in matrix A.
+	mov r9,	[rsi + Matrix.data]			; R9  points to current 4 elements in matrix B.
+	mov r10,[rax + Matrix.data]			; R10 points to current 4 elements in matrix C.
+
+	xor rdx, rdx					; Number of already processed elements.
 
 .loop_add:
-	movups xmm0, [r8 + 4 * rcx]
-	addps xmm0, [r9 + 4 * rcx]
-	movups [r10 + 4 * rcx], xmm0
-	sub rcx, 4
-	jns .loop_add
+; Sum up next 4 elements from matrix A and B and store them to C.
+	movups	xmm0, [r8]
+	addps	xmm0, [r9]
+	movups	[r10], xmm0
 
+	add	rdx, 4
+; Move pointers to current elements by 4.
+	add	r8,  4 * 4
+	add	r9,  4 * 4
+	add	r10, 4 * 4
+
+	cmp	rdx, rcx
+	jne	.loop_add
+	
+.end_loop_add:
 	ret
 
 .bad_dims:
-	pop rsi
-	pop rdi
-	xor rax, rax
+; Since matrices A and B can't be sumed, return 0. 
+	xor	rax, rax
 	ret
+
 
 ;; Matrix matrixMul(Matrix a, Matrix b);
 ;;
@@ -260,82 +294,113 @@ matrixAdd:
 ;; Returns:
 ;;	* RAX: pointer to resulting matrix C.
 matrixMul:
-	mov rax, [rdi + Matrix.cols]
-	cmp rax, [rsi + Matrix.rows]
-	jne .bad_dims
+; Check if matrix A and matrix B have valid dimensions to perform multiplication.
+	mov	rax, [rdi + Matrix.cols]
+	cmp	rax, [rsi + Matrix.rows]
+	jne	.bad_dims
 
-	push rdi
-	push rsi				; stack: *B | *A | ...
+; Transpose matrix B to make multiplication easier and faster (linear memory access).
+	push	rdi
+	mov	rdi, rsi
+	call	matrixTranspose
+	mov	rsi, rax
+	pop	rdi
 
-	mov rdi, [rdi + Matrix.rows]
-	mov rsi, [rsi + Matrix.cols]
-	call matrixNew
+	push	rax					; Save pointer to transposed matrix to delete it later.
 
-	push rax				; stack: *C | *B | *A | ...
+; Allocate matrix C to store result of multiplication.
+	push	rdi
+	push	rsi
+	mov	rdi, [rdi + Matrix.rows]
+	mov	rsi, [rsi + Matrix.rows]		; Rows instead of cols since matrix has been transposed.
+	call	matrixNew
+	mov	rdx, rax
+	pop	rsi
+	pop	rdi
 
-	mov rdi, [rsp + 16]
-	mov rsi, [rsp + 8]
-	xchg rsi, rdi
-	call matrixTranspose
-	mov rdi, [rsp + 16]
-	mov rsi, [rsp + 8]
+; R8, R9 and R10 hold borders for multiplication cycles.
+	mov	r8, [rdi + Matrix.rowsAligned]
+	mov	r9, [rdi + Matrix.colsAligned]
+	mov	r10, [rsi + Matrix.rowsAligned]
 
-	mov rsi, rax				; RSI - B^T
+; RDI, RSI and RDX hold pointers to current elements of matrices A, B and C respectively.
+	mov	rdi, [rdi + Matrix.data]
+	mov	rsi, [rsi + Matrix.data]
 
-	mov r11, [rax + Matrix.rowsAligned]
-	mov r12, [rax + Matrix.colsAligned]
+	mov	rax, rdx
+	mov	rdx, [rax + Matrix.data]
 
-	mov rdi, [rdi + Matrix.data]
-	mov rsi, [rsi + Matrix.data]
-	mov rax, [rsp]
-	mov rax, [rax + Matrix.data]
+; Save callee-saved registers.
+	push	r12
+	push	r13
+	push	r14
 
-	xor r8, r8 				; i loop counter
+	xor	r11, r11				; R11 holds i loop counter.
 .loop_i:
-	xor r9, r9				; j loop counter
-	mov r15, rsi
+	xor	r13, r13				; R12 holds j loop counter.
 .loop_j:
-	lea r14, [r8 * 4]
-	imul r14, r12
-	add r14, rdi				; r14 points to current row in matrix A
-	xor r10, r10				; k loop conter
+; R12 holds address of next 4 elements from matrix A. 
+	mov	r12, r11
+	imul	r12, r9
+	imul	r12, 4
+	add	r12, rdi
 
-	xorps xmm0, xmm0			; sum aggregator
+; R14 holds address of next 4 elements from matrix B.
+	mov	r14, r13
+	imul	r14, r9
+	imul	r14, 4
+	add	r14, rsi
+
+	xor	rcx, rcx				; RCX holds k loop counter.
+	xorps	xmm0, xmm0				; XMM0 accumulates sum of elements' multiplications. 
 .loop_k:
-	movups xmm1, [r14]
-	mulps xmm1, [r15]
+; Multiply next 4 elements from matrix A and matrix B.
+	movups	xmm1, [r12]
+	mulps	xmm1, [r14]
+; Sum them up.
+	haddps	xmm1, xmm1
+	haddps	xmm1, xmm1
+; And add to accumulator XMM0.
+	addss	xmm0, xmm1
 
-	haddps xmm1, xmm1			; add four 
-	haddps xmm1, xmm1
+; Move pointers to next 4 elements.
+	add	r12, 4 * 4
+	add	r14, 4 * 4
+	add	rcx, 4
+	cmp	rcx, r9
+	jne	.loop_k
 
-	addps xmm0, xmm1
-	add r14, 16
-	add r15, 16
-	add r10, 4
-	cmp r10, r12				; columns end
-	jne .loop_k
+; Store accumulated sum to current element of matrix C.
+	movss	[rdx], xmm0
+	add	rdx, 4
 
-	movss [rax], xmm0
-	add rax, 4
-	inc r9
-	cmp r9, r12
-	jne .loop_j
+; Check if we processed current column.
+	inc	r13
+	cmp	r13, r10
+	jne	.loop_j
 
-	inc r8
-	cmp r8, r11				; rows end
-	jne .loop_i
+; Check if we processed current row.
+	inc	r11
+	cmp	r11, r8
+	jne	.loop_i
 
-	mov rdi, [rsp + 8]			; resotre matrix C pointer
-	call matrixDelete 
+; Restore callee-saved registers.
+	pop	r14
+	pop	r13
+	pop	r12
 
-	pop rax
-	add rsp, 16				; remove pointers to matrix A and B on stack.
+; Delete transposed matrix B.
+	pop	rdi
+	push	rax
+	call	matrixDelete
+	pop	rax
+
 	ret
 
 .bad_dims:
+; Since matrices can't be multiplied return 0.
 	xor rax, rax
 	ret
-
 
 
 ;; Transposes matrix A and returns pointer to resulting matrix B.
@@ -346,11 +411,12 @@ matrixMul:
 matrixTranspose:
 	push rdi
 
-	mov rbx, rdi
-	mov rsi, [rbx + Matrix.rows]
-	mov rdi, [rbx + Matrix.cols]
+; Allocate new matrix with flipped dimensions.
+	mov rdx, rdi
+	mov rsi, [rdx + Matrix.rows]
+	mov rdi, [rdx + Matrix.cols]
 
-	push rbx
+	push rdx
 	push rsi
 	push rdi
 
@@ -358,146 +424,41 @@ matrixTranspose:
 
 	pop rdi
 	pop rsi
-	pop rbx
+	pop rdx
 
-	mov rbx, [rsp]
-	mov rsi, [rbx + Matrix.rowsAligned]
-	mov rdi, [rbx + Matrix.colsAligned]
-	mov rbx, [rbx + Matrix.data]
+	mov rdx, [rsp]
+	mov rsi, [rdx + Matrix.rowsAligned]
+	mov rdi, [rdx + Matrix.colsAligned]
+	mov rdx, [rdx + Matrix.data]			; RDX holds pointer to transposed matrix's data.
 
-	xor r8, r8
+	xor r8, r8					; R8 holds i loop counter.
 .loop_i:
-	xor r9, r9
+	xor r9, r9					; R9 holds j loop counter.
 .loop_j:
+; R10 holds index of next 4 elements from matrix A. 
 	mov r10, r9
 	imul r10, rsi
 	add r10, r8
+; Multiply by sizeof(float).
 	shl r10, 2
-	movss xmm0, [rbx]
+; Calculate real memory address.
 	add r10, [rax + Matrix.data]
+
+; Transpose current elements.
+	movss xmm0, [rdx]
 	movss [r10], xmm0
-	add rbx, 4
+
+; Move pointer to next elements.
+	add rdx, 4
+; Check if row processed.
 	inc r9
 	cmp r9, rdi
 	jne .loop_j
 
+; Check if column processed.
 	inc r8
 	cmp r8, rsi
 	jne .loop_i
 
 	pop rdi
 	ret
-
-
-
-;; Transposes matrix A.
-;; Takes:
-;;	* RDI: pointer to matrix A.
-matrixTransposeInplace:
-	mov rcx, [rdi + Matrix.rowsAligned]
-	imul rcx, [rdi + Matrix.colsAligned]		; RCX - number of elements in matrix.
-	mov [count], rcx
-	
-	mov r8, [rdi + Matrix.data]			; R8 - beginning of elements array. 
-	lea r9, [r8 + rcx]				; R9 - end of elements array
-	mov [first], r8
-	mov [last], r9
-
-	mov rax, rcx					; MN1 = (last - first) / ROWS as RCX / ROWS
-	xor rdx, rdx					; RDX:RAX / ROWS
-	mov r11, [rdi + Matrix.rowsAligned]
-	idiv r11
-	mov [mn1], rax
-
-	mov rax, [count]				; N = (last - first - 1)
-	dec rax
-	mov [n], rax
-;; Allocate bitset to store already swapped elements.
-	push rdi					; Store registers before calloc
-	push rcx
-	push r8
-	push r9
-	push r10
-
-	mov rdi, rcx
-	add rdi, 31
-	shr rdi, 5
-	mov rsi, 4
-	call calloc
-
-	pop r10						; Restore registers
-	pop r9
-	pop r8
-	pop rcx
-	pop rdi
-
-	push rax					; Save pointer to bitset.
-							; Stack: *BITSET | ...
-
-	mov [cycle], r8					; R10 - curent element loop counter.
-
-.loop_elem:
-	add qword [cycle], 4
-
-	mov r11, [cycle]
-	sub r11, r8			; r11 - index of cell
-	shl r11, 2			; div by 4 to calc index
-
-	mov r12, r11			; r12 = r11 / 32
-	shr r12, 5
-
-	mov r13, r11			; r13 = r11 % 32
-	and r13, 0x1f			; r13 - index of bit in cell at r12
-	bts [rax + r12], r13		; test and set visited bit
-	mov r12, 0
-	adc r12, 0			; get bit from CF
-
-	cmp r12, 1
-	je .loop_elem			; already visited, continue with next element.
-
-	mov r11, [cycle]		; r11 - a
-	sub r11, [first]
-	shl r11, 2			; div by sizeof float to calc real index
-	mov [a], r11
-
-.loop_swap:
-	cmp r11, [rsp]
-	je .calc_a_done
-
-	imul r11, [n]
-
-	push rax
-	xor rdx, rdx
-	mov rax, r11
-	mov r13, [mn1]
-	idiv r13
-	mov r11, rdx			; r11 = (a * n) % mn
-	mov [a], r11
-
-.calc_a_done:
-	mov eax, dword [first + r11]		; swap
-	mov edx, dword [cycle]
-	mov [first + r11], edx
-	mov [cycle], eax
-
-	mov rax, [first]
-	add rax, [a]
-	cmp [cycle], rax
-	jne .loop_swap
-
-	;pop rax
-
-	mov rax, [last]
-	cmp [cycle], rax
-	jne .loop_elem
-
-	push rdi
-	mov rdi, [esp]
-	call free
-	pop rdi
-
-	add esp, 8
-	ret
-
-
-

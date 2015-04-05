@@ -47,17 +47,21 @@ Matrix matrixScale(Matrix matrix, float k);
 
 /**
  * Add two matrices.
- * \return new matrix or 0 if the sizes don't match. 
+ * \return new matrix or 0 if the sizes don't match.
  */
 Matrix matrixAdd(Matrix a, Matrix b);
+
+/**
+ * Transpose matrix.
+ * \return new matrix.
+ */
+Matrix matrixTranspose(Matrix a);
 
 /**
  * Multiply two matrices.
  * \return new matrix or 0 if the sizes don't match.
  */
 Matrix matrixMul(Matrix a, Matrix b);
-
-Matrix matrixTranspose(Matrix a);
 
 
 

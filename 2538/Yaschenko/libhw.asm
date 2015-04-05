@@ -143,6 +143,7 @@ matrixSet:
 	movss	[rsi], xmm0
 	ret
 
+
 ;; Matrix matrixScale(Matrix matrix, float k);
 ;;
 ;; Scales source matrix M by scalar K and returns pointer to new
@@ -153,33 +154,35 @@ matrixSet:
 ;; Returns:
 ;;	* RAX: pointer to resulting matrix.
 matrixScale:
-	push rdi
+	push	rdi
 
-	mov rsi, [rdi + Matrix.cols]
-	mov rdi, [rdi + Matrix.rows]
-	call matrixNew
-	pop rdi
+	mov	rsi, [rdi + Matrix.cols]
+	mov	rdi, [rdi + Matrix.rows]
+	call	matrixNew
 
-	push rax
+	pop	rdi
 
-	mov rcx, [rdi + Matrix.rowsAligned]
-	imul rcx, [rdi + Matrix.colsAligned]
-	sub rcx, 4
+	mov	rdx, [rdi + Matrix.rowsAligned]
+	imul	rdx, [rdi + Matrix.colsAligned]
 
 	unpcklps xmm0, xmm0					; Make xmm0 store vector of four K values.
 	unpcklps xmm0, xmm0
 
-	mov rdi, [rdi + Matrix.data]
-	mov rax, [rax + Matrix.data]
+	mov	rsi, [rdi + Matrix.data]
+	mov	rdi, [rax + Matrix.data]
+	xor	rcx, rcx
 
-	.loop
-		movups xmm1, [rdi + 4 * rcx]
-		mulps xmm1, xmm0
-		movups [rax + 4 * rcx], xmm1
-		sub rcx, 4
-		jns .loop
+.loop:
+	movups	xmm1, [rsi]
+	mulps	xmm1, xmm0
+	movups	[rdi], xmm1
+	add	rsi, 4 * 4
+	add	rdi, 4 * 4
+	add	rcx, 4
+	cmp	rcx, rdx
+	je	.return
 
-	pop rax
+.return:
 	ret
 
 ;; Matrix matrixAdd(Matrix a, Matrix b);

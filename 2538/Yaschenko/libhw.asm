@@ -28,6 +28,7 @@ endstruc
 	shl	%1, 2
 %endmacro
 
+
 ;; Matrix matrixNew(unsigned int rows, unsigned int cols);
 ;;
 ;; Creates new matrix with A rows and B columns.
@@ -92,8 +93,9 @@ matrixDelete:
 ;; Returns:
 ;;	* RAX: number of rows in matrix A.
 matrixGetRows:
-	mov rax, [rdi + Matrix.rows]
+	mov	rax, [rdi + Matrix.rows]
 	ret
+
 
 ;; unsigned int matrixGetCols(Matrix matrix);
 ;;
@@ -103,23 +105,9 @@ matrixGetRows:
 ;; Returns:
 ;;	* RAX: number of columns in matrix A.
 matrixGetCols:
-	mov rax, [rdi + Matrix.cols]
+	mov	rax, [rdi + Matrix.cols]
 	ret
 
-;; Returns pointer element in A'th row B'th column in matrix M.
-;; Takes:
-;;	* RDI: pointer to matrix M.
-;;	* RSI: number of row A.
-;;	* RDX: number of column B.
-;; Returns:
-;;	* RAX: pointer to M[A][B].
-loadAddress:
-	imul rsi, [rdi + Matrix.colsAligned]				; Calculate index of [A][B]'th element as
-	add rsi, rdx						; A * M.cols + B
-	shl rsi, 2						; Multiply index by 4 (sizeof float) to get element's offset. 
-	mov rax, [rdi + Matrix.data]				; Calculate element's actual address.
-	add rax, rsi
-	ret
 
 ;; float matrixGet(Matrix matrix, unsigned int row, unsigned int col);
 ;;
@@ -131,9 +119,13 @@ loadAddress:
 ;; Returns:
 ;;	* XMM0: element in M[A][B].
 matrixGet:
-	call loadAddress
-	movss xmm0, [rax]
+	imul	rsi, [rdi + Matrix.colsAligned]
+	add	rsi, rdx
+	shl	rsi, 2
+	add	rsi, [rdi + Matrix.data]
+	movss	xmm0, [rsi]
 	ret
+
 
 ;; void matrixSet(Matrix matrix, unsigned int row, unsigned int col, float value);
 ;;
@@ -144,8 +136,11 @@ matrixGet:
 ;;	* RDX: number of column B.
 ;;	* XMM0: new value V.
 matrixSet:
-	call loadAddress
-	movss [rax], xmm0
+	imul	rsi, [rdi + Matrix.colsAligned]
+	add	rsi, rdx
+	shl	rsi, 2
+	add	rsi, [rdi + Matrix.data]
+	movss	[rsi], xmm0
 	ret
 
 ;; Matrix matrixScale(Matrix matrix, float k);

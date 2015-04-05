@@ -269,12 +269,11 @@ matrixMul:
     je .for_row                     ; and go for next row
 
     push rax                        ; RAX -- our new matrix, need to save it
-    xor rax, rax
-    mov eax, r11d                   ; RAX = y
+    mov rax, r11                    ; RAX = y
     imul eax, [rsi]                 ; RAX = y * n
-    add eax, r10d                   ; RAX = y * n + x -- it is encoded address of cell in tranposed matrix
-    add eax, 2                      ; RAX = y * n + x + 2
-    shl eax, 2                      ; RAX = (y * n + x + 2) * 4 -- final address
+    add rax, r10                    ; RAX = y * n + x -- it is encoded address of cell in tranposed matrix
+    add rax, 2                      ; RAX = y * n + x + 2
+    shl rax, 2                      ; RAX = (y * n + x + 2) * 4 -- final address
     mov rcx, rax                    ; remembering it to RCX
     pop rax                         ; restoring RAX
 

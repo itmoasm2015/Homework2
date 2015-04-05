@@ -306,11 +306,13 @@ matrixMul:
 	mov	rsi, rax
 	pop	rdi
 
+	push	rax					; Save pointer to transposed matrix to delete it later.
+
 ; Allocate matrix C to store result of multiplication.
 	push	rdi
 	push	rsi
 	mov	rdi, [rdi + Matrix.rows]
-	mov	rsi, [rsi + Matrix.rows]		; rows since it has been transposed
+	mov	rsi, [rsi + Matrix.rows]		; Rows instead of cols since matrix has been transposed.
 	call	matrixNew
 	mov	rdx, rax
 	pop	rsi
@@ -383,9 +385,15 @@ matrixMul:
 	jne	.loop_i
 
 ; Restore callee-saved registers.
-	pop r14
-	pop r13
-	pop r12
+	pop	r14
+	pop	r13
+	pop	r12
+
+; Delete transposed matrix B.
+	pop	rdi
+	push	rax
+	call	matrixDelete
+	pop	rax
 
 	ret
 

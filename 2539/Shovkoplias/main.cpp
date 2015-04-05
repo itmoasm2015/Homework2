@@ -5,11 +5,12 @@
 int main()
 {
     printf("Testing work:\n");
-    Matrix a = matrixNew(4, 9);
+    int n = 1;
+    int m = 1;
+    Matrix a = matrixNew(n, m);
     for (int i = 0; i < matrixGetRows(a); i++)
         for (int j = 0; j < matrixGetCols(a); j++)
             matrixSet(a, i, j, (float)(i + 1) / (j + 1));
-    printf("%f\n", matrixGet(a, 3, 4));
     for (int i = 0; i < matrixGetRows(a); i++)
     {
         for (int j = 0; j < matrixGetCols(a); j++)
@@ -44,7 +45,7 @@ int main()
     /*c = matrixAdd(a, matrixNew(1, 1));
     if (c == NULL)
         printf("Yeah\n"), c = matrixNew(3, 3);*/
-    Matrix e = matrixMul(c, d);
+    Matrix e = matrixMul(matrixNew(1, 1), matrixNew(1, 1));
     for (int i = 0; i < matrixGetRows(e); i++)
     {
         for (int j = 0; j < matrixGetCols(e); j++)

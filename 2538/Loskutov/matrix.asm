@@ -71,7 +71,9 @@ matrixNew:
 
 ; void matrixDelete(Matrix matrix)
 matrixDelete:
+    sub          rsp, 8                       ; stack alignment
     call         free
+    add          rsp, 8
     ret
 
 ; unsigned int matrixGetRows(Matrix matrix)
@@ -290,7 +292,9 @@ matrixMul:
     mov          esi, [r9 + rows_offset]
     push         r8
     push         r9
+    sub          rsp, 8                       ; align stack by 16 bytes
     call         matrixNew
+    add          rsp, 8
     pop          r9
     pop          r8
     test         rax, rax

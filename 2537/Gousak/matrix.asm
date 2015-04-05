@@ -214,3 +214,30 @@ matrixSet:
     get_cell_pointer
     movss [rax], xmm0
     ret
+
+;Matrix matrixScale(Matrix matrix, float k)
+;Multiplies matrix' cells by k
+;args:      RDI  - pointer to matrix
+;           XMM0 - coefficient
+;returns:   RAX  - pointer to new matrix
+matrixScale:
+    ; boldly stolen this trick from my friend's code
+    ; gets 4 instances of the coefficient in XMM0
+    punpckldq xmm0, xmm0 ; ?:?:k:k
+    punpckldq xmm0, xmm0 ; k:k:k:k
+
+    call matrixCopy
+
+    mov rcx, [rax + aligned_rows]
+    imul rcx, [rax + aligned_cols] ; calculate the number of cells
+    mov r8, [rax + cells]          ; pointer to the copy's cells
+
+.mul_loop:
+    movups xmm1, [r8]         ; load a vector of cells
+    mulps xmm1, xmm0          ; multiply by XMM0
+    movups [r8], xmm1         ; return the values to the respective cells
+    add r8, 4 * SIZE_OF_FLOAT ; move the pointer
+    sub rcx, 4                ; keep scaling by 4 cells
+    jnz .mul_loop
+
+    ret

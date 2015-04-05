@@ -180,7 +180,7 @@ matrixScale:
 	add	rdi, 4 * 4
 	add	rcx, 4
 	cmp	rcx, rdx
-	je	.return
+	jne	.loop
 
 .return:
 	ret

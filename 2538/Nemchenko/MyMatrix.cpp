@@ -7,7 +7,7 @@
 MyMatrix MyMatrix::NULL_MATRIX(0, 0);
 
 MyMatrix::MyMatrix(unsigned int rows, unsigned int cols) {
-    matrix.resize(rows, std::vector<double>(cols));
+    matrix.resize(rows, std::vector<float>(cols));
 }
 
 MyMatrix::MyMatrix(MyMatrix&& rhs) {
@@ -21,20 +21,21 @@ unsigned int MyMatrix::getRows() const {
 }
 
 unsigned int MyMatrix::getCols() const {
+    if (getRows() == 0) return 0;
     return matrix[0].size();
 }
 
-double* MyMatrix::operator[](unsigned int row) {
-    return matrix[row * getCols()].data();
+float* MyMatrix::operator[](unsigned int row) {
+    return matrix[row].data();
 }
 
-const double* MyMatrix::operator[](unsigned int row) const {
-    return matrix[row * getCols()].data();
+const float* MyMatrix::operator[](unsigned int row) const {
+    return matrix[row].data();
 }
 
 MyMatrix& MyMatrix::operator*(float scale) {
     for (sz_t i = 0; i < getRows(); ++i) {
-        for (double& value : matrix[i]) {
+        for (float& value : matrix[i]) {
             value *= scale;
         }
     }
@@ -46,9 +47,9 @@ MyMatrix MyMatrix::operator+(MyMatrix const& rhs) const {
         return NULL_MATRIX;
     }
 
-    MyMatrix result(getCols(), getRows());
-    for (sz_t i = 0; i < getCols(); ++i) {
-        for (sz_t j = 0; j < getRows(); ++j) {
+    MyMatrix result(getRows(), getCols());
+    for (sz_t i = 0; i < getRows(); ++i) {
+        for (sz_t j = 0; j < getCols(); ++j) {
             result[i][j] = matrix[i][j] + rhs[i][j];
         }
     }
@@ -74,11 +75,17 @@ MyMatrix& operator*(float scale, MyMatrix& matrix) {
 }
 
 std::ostream& operator<<(std::ostream& out, MyMatrix const& matrix) {
+    out << "-------MY_MATRIX-------" << std::endl;
     for (MyMatrix::sz_t i = 0; i < matrix.getRows(); ++i) {
         for (MyMatrix::sz_t j = 0; j < matrix.getCols(); ++j) {
             out << matrix[i][j] << ' ';
         }
         out << std::endl;
     }
+    out << "-------END-------" << std::endl;
     return out;
+}
+
+bool MyMatrix::isNull() const {
+    return getRows() == 0;
 }

@@ -1,7 +1,3 @@
 all:
 	yasm -felf64 -gdwarf2 matrix.asm -o matrix.o
-	gcc matrix.o test.c -msse -g -std=c11 -o test
-	
-    
-run: all
-	valgrind --leak-check=full ./test
+	ar rcs libhw.a matrix.o

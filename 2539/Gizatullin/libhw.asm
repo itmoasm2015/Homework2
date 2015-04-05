@@ -260,6 +260,7 @@ matrixMul:
     push r11
     push r12
     push r13
+    push r14
 
     ; checks dimensions
     mov ebx, [rsi + ROWS]
@@ -434,6 +435,7 @@ matrixMul:
 
 .end_mul:
     pop rax
+    pop r14
     pop r13
     pop r12
     pop r11

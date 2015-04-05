@@ -396,6 +396,7 @@ matrixMul:
 matrixTranspose:
 	push rdi
 
+; Allocate new matrix with flipped dimensions.
 	mov rdx, rdi
 	mov rsi, [rdx + Matrix.rows]
 	mov rdi, [rdx + Matrix.cols]
@@ -413,24 +414,33 @@ matrixTranspose:
 	mov rdx, [rsp]
 	mov rsi, [rdx + Matrix.rowsAligned]
 	mov rdi, [rdx + Matrix.colsAligned]
-	mov rdx, [rdx + Matrix.data]
+	mov rdx, [rdx + Matrix.data]			; RDX holds pointer to transposed matrix's data.
 
-	xor r8, r8
+	xor r8, r8					; R8 holds i loop counter.
 .loop_i:
-	xor r9, r9
+	xor r9, r9					; R9 holds j loop counter.
 .loop_j:
+; R10 holds index of next 4 elements from matrix A. 
 	mov r10, r9
 	imul r10, rsi
 	add r10, r8
+; Multiply by sizeof(float).
 	shl r10, 2
-	movss xmm0, [rdx]
+; Calculate real memory address.
 	add r10, [rax + Matrix.data]
+
+; Transpose current elements.
+	movss xmm0, [rdx]
 	movss [r10], xmm0
+
+; Move pointer to next elements.
 	add rdx, 4
+; Check if row processed.
 	inc r9
 	cmp r9, rdi
 	jne .loop_j
 
+; Check if column processed.
 	inc r8
 	cmp r8, rsi
 	jne .loop_i

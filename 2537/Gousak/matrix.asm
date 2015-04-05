@@ -5,10 +5,10 @@ extern calloc
 extern free
 
 global matrixNew        ;done
-global matrixDelete
-global matrixGetRows
-global matrixGetCols
-global matrixGet
+global matrixDelete     ;done
+global matrixGetRows    ;done
+global matrixGetCols    ;done
+global matrixGet        ;done
 global matrixSet
 global matrixScale
 global matrixAdd
@@ -16,7 +16,7 @@ global matrixMul
 
 ; auxillary functions
 global matrixCopy       ;done
-global matrixTranspose
+global matrixTranspose  ;done
 
 SIZE_OF_FLOAT EQU 4
 
@@ -26,6 +26,18 @@ SIZE_OF_FLOAT EQU 4
     add %1, 3
     shr %1, 2
     shl %1, 2
+%endmacro
+
+;macro to find the pointer to cell
+;row = RSI
+;col = RDX
+;matrix_start = RDI
+%macro get_cell_pointer 0
+    imul rsi, [rdi + aligned_cols]
+    add rsi, rdx           ; RSI =  cell's number
+    shl rsi, 2             ; RSI * 4 = cell's start
+    mov rax, [rdi + cells] ; RAX = pointer to cell
+    add rax, rsi
 %endmacro
 
 struc Matrix
@@ -149,4 +161,44 @@ matrixTranspose:
 
     pop r13     ; restore registers
     pop r12
+    ret
+
+;void matrixDelete(Matrix matrix)
+;Deletes matrix
+;args:      RDI - pointer to of matrix
+;returns:   void
+matrixDelete:
+    push rdi
+    mov rdi, [rdi + cells]
+    call free ; deletes cells
+
+    pop rdi
+    call free ; deletes entire matrix
+    ret
+
+;unsigned int matrixGetRows(Matrix matrix)
+;Gets the number of rows
+;args:      RDI - pointer to matrix
+;returns:   RAX - number of rows
+matrixGetRows
+    mov rax, [rdi + rows]
+    ret
+
+;unsigned int matrixGetCols(Matrix matrix)
+;Gets the number of cols
+;args:      RDI - pointer to matrix
+;returns:   RAX - number of columns
+matrixGetCols
+    mov rax, [rdi + cols]
+    ret
+
+;float matrixGet(Matrix matrix, unsigned int row, unsigned int col)
+;Gets the value of the cell
+;args:      RDI  - pointer to matrix
+;           RSI  - row index
+;           RDX  - column index
+;returns:   XMM0 - value of the cell
+matrixGet:
+    get_cell_pointer
+    movss xmm0, [rax]
     ret

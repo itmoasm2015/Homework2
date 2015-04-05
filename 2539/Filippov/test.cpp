@@ -1,7 +1,7 @@
 #include <bits/stdc++.h>
 #include "matrix.h"
 
-const float EPS = 1e-3;
+const float EPS = 1e-4;
 
 class VectorMatrix {
         static const int maxn = 100;
@@ -56,6 +56,19 @@ public:
             return newMatrix;
         }
 
+        VectorMatrix _matrixMul(VectorMatrix other) {
+            VectorMatrix newMatrix;
+            newMatrix._matrixNew(n, other._matrixGetCols());
+            for (unsigned i = 0; i != n; ++i)
+                for (unsigned j = 0; j != other._matrixGetCols(); ++j) {
+                    float result = 0;
+                    for (unsigned k = 0; k != m; ++k)
+                        result += matrix[i][k] * other._matrixGet(k, j);
+                    newMatrix._matrixSet(i, j, result);
+                }
+            return newMatrix;
+        }
+
         bool assertEquals(Matrix other) {
             assert(n == matrixGetRows(other));
             assert(m == matrixGetCols(other));
@@ -63,6 +76,13 @@ public:
                 for (unsigned j = 0; j != m; ++j)
                     assert(fabs(matrix[i][j] - matrixGet(other, i, j)) < EPS);
        }
+
+        void print() {
+            for (unsigned i = 0; i != n; ++i)
+                for (unsigned j = 0; j != m; ++j)
+                    printf("%lf%c", matrix[i][j], " \n"[j + 1 == m]);
+            printf("\n");
+        }
 };
 
 class Tester {
@@ -170,6 +190,37 @@ public:
         testsPassed++;
     }
 
+    void testMulMatrix() {
+        unsigned n = rand() % 5 + 1;
+        unsigned m = rand() % 5 + 1;
+        unsigned k = rand() % 5 + 1;
+        Matrix matrixA = matrixNew(n, m);
+        Matrix matrixB = matrixNew(m, k);
+        VectorMatrix vectorMatrixA;
+        vectorMatrixA._matrixNew(n, m);
+        VectorMatrix vectorMatrixB;
+        vectorMatrixB._matrixNew(m, k);
+
+        for (unsigned i = 0; i != n; ++i)
+            for (unsigned j = 0; j != m; ++j) {
+                float value = rand() % 100 * 1.f / (rand() % 100 + 1);
+                matrixSet(matrixA, i, j, value);
+                vectorMatrixA._matrixSet(i, j, value);
+            }
+         for (unsigned i = 0; i != m; ++i)
+            for (unsigned j = 0; j != k; ++j) {
+                float value = rand() % 100 * 1.f / (rand() % 100 + 1);
+                matrixSet(matrixB, i, j, value);
+                vectorMatrixB._matrixSet(i, j, value);
+            }
+
+         testsCount++;
+         Matrix actual = matrixMul(matrixA, matrixB);
+         VectorMatrix expected = vectorMatrixA._matrixMul(vectorMatrixB);
+         expected.assertEquals(actual);
+         testsPassed++;
+    }
+
     void testAll() {
         printf("Testing matrix creation\n");
         for (int test = 0; test != 100; ++test) {
@@ -202,6 +253,14 @@ public:
         printTestingResult();
         testsCount = 0;
         testsPassed = 0;
+
+        printf("Testing matrix multiply\n");
+        for (int test = 0; test != 100; ++test) {
+            testMulMatrix();
+        }
+        printTestingResult();
+        testsCount = 0;
+        testsPassed = 0;
     }    
 
     void printTestingResult(bool ok = true) {
@@ -212,4 +271,5 @@ public:
 int main() {
     Tester tester;
     tester.testAll();
-}
+} 
+

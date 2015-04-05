@@ -104,7 +104,7 @@ matrixGetCols:
 ;rdi - martix*
 ;rsi(only 32bit) - row
 ;rdx(only 32bit) - col
-;returns result in xmm0(only 16bit)
+;returns result in xmm0(only 32bit)
 matrixGet:
     mov     rax, rsi
     mov     rcx, rdx
@@ -118,7 +118,7 @@ matrixGet:
 ;rdi - matrix*
 ;rsi(only 32bit) - row
 ;rdx(only 32bit) - col
-;xmm0(only 16bit) - element
+;xmm0(only 32bit) - element
 matrixSet:
     mov     rax, rsi
     mov     rcx, rdx
@@ -130,7 +130,7 @@ matrixSet:
     ret
 
 ;rdi - matrix*
-;xmm0(only 16bit) - k
+;xmm0(only 32bit) - k
 ;rax - result(new matrix*) or NULL
 matrixScale:
     ;set vector (k, k, k, k) in xmm0

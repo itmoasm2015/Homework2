@@ -18,16 +18,25 @@
 %endrep
 %endmacro
 
+;; madd - add first value to all the others
+%macro  madd 2-*
+%assign x %1
+%rep %0-1
+%rotate -1
+              add   %1, x
+%endrep
+%endmacro
+
 ;; save registers and allocate stack space
 %macro CDECL_ENTER 2
-              mpush rbp, rbx, r12, r13, r14, r15
+              mpush rbx, r12, r13, r14, r15
               enter %1, %2
 %endmacro
 
 ;; restore registers and clean stack space
 %macro CDECL_RET 0
               leave
-              mpop  rbp, rbx, r12, r13, r14, r15
+              mpop  rbx, r12, r13, r14, r15
               ret
 %endmacro
 
@@ -51,6 +60,9 @@ global matrixNew, matrixDelete, matrixGetRows, matrixGetCols, matrixGet, matrixS
 ;;     uint64_t cols;
 ;;     float data[] __attribute__ ((aligned (16)));
 ;; };
+;; 
+;; Data is stored aligned by 16 bytes, which is achieved by aligned_alloc and rounding
+;; columns number up to 4.
               struc matrix
 .rows:        resq  1
 .cols:        resq  1
@@ -70,8 +82,7 @@ matrixNewRaw:
               mov   r8, rdi         ; Save real rows
               mov   r9, rsi         ; and cols values
 
-              ROUND_4 rdi           ; Round rows and cols up to 4
-              ROUND_4 rsi           ; so rows*cols will divide by 16
+              ROUND_4 rsi           ; Round cols up to 4 so matrix data size will divide by 16
               
               mov   rax, rdi
               mul   rsi             ; RAX has matrix size
@@ -146,6 +157,21 @@ matrixGetCols:
               ret
 
 
+;; Macro containing set of operations for calculating address
+;; of desired matrix element.
+;; RDI -- matrix address,
+;; RSI -- row index
+;; RDX -- col index
+;; After all the address of element is (rax + r9*4) 
+%macro count_offset 0
+              lea   rax, [rsi*4]
+              mov   r9, rdx
+              mov   r8, [rdi + matrix.cols]
+              ROUND_4 r8                           ; Round number of cols up to 4, to get real data offset
+              mul   r8              
+              lea   rax, [rax + rdi + matrix_size] ; Now address of necessary row beginning is written into RAX (matrix + 16 + row * sizeof(float) * matrix->rows)
+%endmacro
+
 ;; @cdecl64
 ;; float matrixGet(Matrix matrix, unsigned int row, unsigned int col);
 ;;
@@ -156,12 +182,8 @@ matrixGetCols:
 ;; @param RDX unsigned int col -- col index
 ;; @return XMM0 float -- corresponding matrix element
 matrixGet:
-              lea   rax, [rsi*4]
-              mov   r8, [rdi]
-              mul   r8              
-              lea   rax, [rax + rdi + matrix_size] ; Now address of necessary row beginning is written into RAX (matrix + 16 + row * sizeof(float) * matrix->rows)
-
-              movss xmm0, [rax + rdx*4]
+              count_offset
+              movss xmm0, [rax + r9*4]
               ret
 
 
@@ -175,12 +197,8 @@ matrixGet:
 ;; @param RDX unsigned int col -- col index
 ;; @param XMM0 float value -- a value to set
 matrixSet:
-              lea   rax, [rsi*4]
-              mov   r8, [rdi]
-              mul   r8
-              lea   rax, [rax + rdi + matrix_size] ; Now address of necessary row beginning is written into RAX (matrix + 16 + row * sizeof(float) * matrix->rows)
-
-              movss [rax + rdx*4], xmm0 
+              count_offset
+              movss [rax + r9*4], xmm0 
               ret
 
 
@@ -206,15 +224,136 @@ matrixScale:
               lea    rsi, [rax + matrix.data] ; Set RSI to the beginning of output matrix
 
               shr    rcx, 2          ; Divide by 4 to use DEC instead of SUB
-.copy_loop:
+.mul_loop:
               movaps xmm1, [rdi]     ; Perform multiplication
               mulps  xmm1, xmm0
               movaps [rsi], xmm1
 
-              add    rdi, 16         ; and shift all the indices
-              add    rsi, 16
+              madd   16, rdi, rsi    ; and shift all the indices
               dec    rcx
-              jnz    .copy_loop
+              jnz    .mul_loop
 
               ret
 
+
+;; @cdecl64
+;; Matrix matrixAdd(Matrix a, Matrix b);
+;;
+;; Sums 2 matrices. 
+;;
+;; @param RDI void* a -- first summand
+;; @param RSI void* b -- second summand
+;; @return RAX void* -- pointer to a sum
+matrixAdd:
+              mov    r8, [rdi]                   ; a.rows
+              mov    r9, [rdi + matrix.cols]     ; a.cols
+              mov    r10, [rsi]                  ; b.rows
+              mov    r11, [rsi + matrix.cols]    ; b.cols
+
+              xor    rax, rax        ; return NULL by default
+              cmp    r8, r10         ; Compare dimensions
+              jne    .return         ; of matrices
+
+              cmp    r9, r11         ; and return NULL
+              jne    .return         ; if they don't match
+
+              mpush  rdi, rsi        ; Save summands addresses
+
+              mov    rdi, r8
+              mov    rsi, r9
+              call matrixNewRaw
+
+              mpop   rdi, rsi        ; Restore summand addresses
+              push   rax             ; and save new matrix address
+
+              madd   matrix_size, rdi, rsi, rax
+              shr    rcx, 2          ; Divide by 4 to use DEC instead of SUB 
+.sum_loop:    
+              movaps xmm0, [rdi]
+              movaps xmm1, [rsi]
+              addps  xmm0, xmm1
+              movaps [rax], xmm0
+
+              madd   16, rdi, rsi, rax
+              dec    rcx
+              jnz    .sum_loop
+
+              pop    rax             ; Restore new matrix address
+.return:
+              ret
+
+
+;; @cdecl64
+;; Matrix matrixMul(Matrix a, Matrix b);
+;;
+;; Multiples 2 matrices. 
+;;
+;; @param RDI void* a -- first multiplicant
+;; @param RSI void* b -- second multiplicant
+;; @return RAX void* -- pointer to a product
+matrixMul:
+              CDECL_ENTER 0, 0
+
+              xor    rax, rax
+              mov    r13, [rdi + matrix.cols] 
+              mov    r14, [rsi]
+              cmp    r13, r14        ; Matrices should be (M x N) * (N x K)
+              jne    .return         ; or we return NULL
+
+              mov    r12, [rdi]
+              mov    r15, [rsi + matrix.cols]
+              mpush  rdi, rsi        ; r12 = M, r13 = N, r14 = N r15 = K
+
+              mov    rdi, r12
+              mov    rsi, r15
+              call   matrixNewRaw    ; Create new (M x K) matrix
+
+              ROUND_4 r13            ; Get the real matrix cols
+              ROUND_4 r15            ; r12 = M, r13 = align(N), r14 = N, r15 = align(K)   
+
+              mpop   rdi, rsi
+              push   rax             ; Save returning matrix address
+              madd   matrix_size, rax, rdi, rsi ; RDI = &A, RSI = &B, RAX = &result
+              
+              xor    rbx, rbx        ; Answer row index (i)
+.row_loop:
+              xor    rdx, rdx        ; Answer col index (j)
+              push   rsi             ; We save &B because we'll move it as we change columns                           
+.col_loop:
+              xorps  xmm0, xmm0      ; Reset XMM0 - it will store the sum accumulator
+              xor    r8, r8        ; Index of current element in a row (k)
+              xor    r9, r9        ; Current column offset      
+.fold_loop:
+              movss  xmm1, [rdi + r8*4] ; Take first k'th of current A row
+              shufps xmm1, xmm1, 0       ; Spread it along the vector: (k, _, _, _) -> (k, k, k, k)
+
+              movups xmm2, [rsi + r9] ; Fetch k'th elements of current 4 cols of B
+
+              mulps  xmm1, xmm2      ; Multiply values 
+              addps  xmm0, xmm1      ; and add them to accumulator
+
+              lea    r9, [r9 + r15*4]
+              inc    r8             ; Update k
+              cmp    r8, r14        ; and check if we reached end of row
+              jne    .fold_loop
+
+;; end fold_loop
+              movaps [rax], xmm0
+              madd   16, rax, rsi    ; Shift RSI forward to choose next set of columns and RAX to record next values
+
+              add    rdx, 4          ; Update j
+              cmp    rdx, r15        ; and check if we reached end of result row
+              jne    .col_loop
+
+;; end col_loop
+              pop    rsi             ; Point RSI to &B again
+              lea    rdi, [rdi + r13*4] ; Shift RDI forward to choose next row
+
+              inc    rbx             ; Update i
+              cmp    rbx, r12        ; and check if we reached end of the matrix
+              jne    .row_loop
+
+;; end row_loop
+              pop    rax
+.return 
+              CDECL_RET

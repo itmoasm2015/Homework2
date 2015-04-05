@@ -1,7 +1,7 @@
 section .text
 
 
-extern malloc
+extern aligned_alloc
 extern free
 
 
@@ -42,8 +42,9 @@ cells:              resq    1                       ; ptr to float array
 
 matrixNew:          push rdi
                     push rsi
-                    mov rdi, Matrix_t_size
-                    call malloc
+                    mov rdi, 16
+                    mov rsi, Matrix_t_size
+                    call aligned_alloc
                     mov r8, rax
                     pop rsi
                     pop rdi
@@ -66,7 +67,9 @@ matrixNew:          push rdi
                     lea rdi, [rdi * 4]
                     push rdi
                     push r8
-                    call malloc                     ; allocate space for cells
+                    mov rsi, 16
+                    xchg rdi, rsi
+                    call aligned_alloc              ; allocate space for cells
                     pop r8
                     pop rcx
                     shr rcx, 2
@@ -182,7 +185,7 @@ matrixSet:          mov r8, [rdi + cells]
 ;   RDX - new_matrix.cells
 
 matrixScale:
-; I honestly believe that xmm0 is not affected by malloc()
+; I honestly believe that xmm0 is not affected by aligned_alloc()
 ; And therefore I do not save it on stack
                     call matrixClone
                     mov rcx, [rax + rows_align]
@@ -190,9 +193,9 @@ matrixScale:
                     shr rcx, 2
                     mov rdx, [rax + cells]
                     shufps xmm0, xmm0, 0            ; xmm0 = (k:k:k:k)
-.scale_loop:        movups xmm1, [rdx]
+.scale_loop:        movaps xmm1, [rdx]
                     mulps xmm1, xmm0                ; qword [rdx] *= xmm0
-                    movups [rdx], xmm1
+                    movaps [rdx], xmm1
                     lea rdx, [rdx + 16]
                     dec rcx
                     jnz .scale_loop
@@ -227,9 +230,9 @@ matrixAdd:          mov r8, [rdi + rows]
                     shr rcx, 2
                     mov rdx, [rax + cells]
                     mov r8, [rsi + cells]
-.add_loop:          movups xmm0, [rdx]
+.add_loop:          movaps xmm0, [rdx]
                     addps xmm0, [r8]
-                    movups [rdx], xmm0
+                    movaps [rdx], xmm0
                     lea rdx, [rdx + 16]
                     lea r8, [r8 + 16]
                     dec rcx
@@ -264,7 +267,7 @@ matrixTranspose:    push rdi
                     xor rcx, rcx
 .transpose_loop_1:  xor rdx, rdx
                     lea r11, [rdi + rcx * 4]
-.transpose_loop_2:  movups xmm0, [r10]
+.transpose_loop_2:  movaps xmm0, [r10]
                     movss [r11], xmm0               ; [r11] = [r10](0..31)
                     psrldq xmm0, 4
                     lea r11, [r11 + r8 * 4]
@@ -338,8 +341,8 @@ matrixMul:          mov r8, [rdi + cols]
                     mov r9, rbp
 .mul_loop_2:        xor r10, r10
                     xorps xmm0, xmm0
-.mul_loop_3:        movups xmm1, [rdi + r10]        ; calculate dot product
-                    movups xmm2, [rsi + r10]
+.mul_loop_3:        movaps xmm1, [rdi + r10]        ; calculate dot product
+                    movaps xmm2, [rsi + r10]
                     dpps xmm1, xmm2, 0xF1
                     addss xmm0, xmm1
                     add r10, 16

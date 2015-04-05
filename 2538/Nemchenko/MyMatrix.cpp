@@ -24,12 +24,12 @@ unsigned int MyMatrix::getCols() const {
     return matrix[0].size();
 }
 
-double& MyMatrix::operator()(unsigned int row, unsigned int col) {
-    return matrix[row][col];
+double* MyMatrix::operator[](unsigned int row) {
+    return matrix[row * getCols()].data();
 }
 
-double MyMatrix::operator()(unsigned int row, unsigned int col) const {
-    return matrix[row][col];
+const double* MyMatrix::operator[](unsigned int row) const {
+    return matrix[row * getCols()].data();
 }
 
 MyMatrix& MyMatrix::operator*(float scale) {
@@ -49,7 +49,7 @@ MyMatrix MyMatrix::operator+(MyMatrix const& rhs) const {
     MyMatrix result(getCols(), getRows());
     for (sz_t i = 0; i < getCols(); ++i) {
         for (sz_t j = 0; j < getRows(); ++j) {
-            result (i, j) = matrix[i][j] + rhs (i, j);
+            result[i][j] = matrix[i][j] + rhs[i][j];
         }
     }
     return result;
@@ -65,7 +65,7 @@ MyMatrix MyMatrix::operator*(MyMatrix const& rhs) const {
     for (sz_t resRow = 0; resRow < getRows(); ++resRow)
         for (sz_t resCol = 0; resCol < rhs.getCols(); ++resCol)
             for (sz_t i = 0; i < getCols(); ++i)
-                result (resRow, resCol) += matrix[resRow][i] * rhs (i, resCol);
+                result[resRow][resCol] += matrix[resRow][i] * rhs[i][resCol];
     return result;
 }
 
@@ -76,7 +76,7 @@ MyMatrix& operator*(float scale, MyMatrix& matrix) {
 std::ostream& operator<<(std::ostream& out, MyMatrix const& matrix) {
     for (MyMatrix::sz_t i = 0; i < matrix.getRows(); ++i) {
         for (MyMatrix::sz_t j = 0; j < matrix.getCols(); ++j) {
-            out << matrix (i, j) << ' ';
+            out << matrix[i][j] << ' ';
         }
         out << std::endl;
     }

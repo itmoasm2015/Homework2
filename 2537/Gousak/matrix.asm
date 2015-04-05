@@ -1,7 +1,7 @@
 section .text
 
 extern calloc
-extern calloc
+extern malloc
 extern free
 
 global matrixNew
@@ -305,7 +305,7 @@ matrixMul:
     push rbp
 
     ; Check if we're allowed to mul matrices (m*n and n*p)
-    mov r8, [rdi + columns]
+    mov r8, [rdi + cols]
     mov r9, [rsi + rows]
     cmp r8, r9
     jne .invalid_input
@@ -329,7 +329,7 @@ matrixMul:
 
     ; Calculate parameters of the result matrix
     mov rdi, [r8 + rows]
-    mov rsi, [r9 + columns]
+    mov rsi, [r9 + cols]
 
     push r9
     push r8
@@ -343,10 +343,10 @@ matrixMul:
     mov r8, [rdi + cells] ; first matrix' cells
     mov r9, [rbp + cells] ; transposed second matrix' cells
     mov r14, [rax + cells] ; result matrix' cells
-    mov r10, [rsi + aligned_columns]
+    mov r10, [rsi + aligned_cols]
     mov r11, [rdi + aligned_rows]
 
-    mov rdx, [rdi + aligned_columns]
+    mov rdx, [rdi + aligned_cols]
     shl rdx, 2 ; size of one row in bytes
 
     mov rsi, r9

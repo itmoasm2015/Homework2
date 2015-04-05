@@ -5,7 +5,7 @@
 
 struct MyMatrix {
 public:
-    typedef std::vector<std::vector<double>> matrix_t;
+    typedef std::vector<std::vector<float>> matrix_t;
     typedef matrix_t::size_type sz_t;
 
     MyMatrix(unsigned int rows, unsigned int cols); 
@@ -18,15 +18,17 @@ public:
 
     unsigned int getCols() const;
 
-    double* operator[](unsigned int row);
+    float* operator[](unsigned int row);
 
-    const double* operator[](unsigned int row) const;
+    const float* operator[](unsigned int row) const;
 
     MyMatrix& operator*(float scale);
 
     MyMatrix operator+(MyMatrix const& rhs) const;
 
     MyMatrix operator*(MyMatrix const& rhs) const;
+
+    bool isNull() const;
 
 private:
     matrix_t matrix;

@@ -1,5 +1,5 @@
 ASM_FLAGS = -felf64 -gdwarf2
-CXX_FLAGS = -std=c++11 -g -L. -I.
+CXX_FLAGS = -std=c++11 -g -L. -I../../include
 
 all: test
 

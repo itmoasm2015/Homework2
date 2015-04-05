@@ -2,7 +2,10 @@ section .text
 
 extern malloc
 extern free
+extern calloc
 
+global matrixClone
+global matrixTranspose
 global matrixNew
 global matrixDelete
 global matrixGetRows
@@ -12,8 +15,6 @@ global matrixSet
 global matrixScale
 global matrixAdd
 global matrixMul
-global matrixClone
-global matrixTranspose
 
 ;we need number to be rounded to the nearest greater 4-divisible
 %macro align_by_4 1 ;((x + 3) / 4) * 4
@@ -38,12 +39,97 @@ global matrixTranspose
 ;rows and columns are stored aligned by 4
 ;so we can use them in SSE (vector) instructions
 struc Matrix
-	cells:			resq 1 ;pointer to float array of values
-	rows:			resq 1 ;number of rows
-	columns:		resq 1 ;number of columns
-	aligned_rows:		resq 1 ;aligned number of rows
-	aligned_columns:	resq 1 ;aligned number of columns
+	cells:			    resq 1 ;pointer to float array of values
+	rows:			    resq 1 ;number of rows
+	columns:		    resq 1 ;number of columns
+	aligned_rows		resq 1 ;aligned number of rows
+	aligned_columns 	resq 1 ;aligned number of columns
 endstruc
+
+;Matrix matrixClone(Matrix matrix)
+;
+;description: creates new matrix, which is a copy of given matrix
+;
+;takes: rdi - pointer to source matrix
+;
+;returns: rax - pointer to new matrix
+matrixClone:
+    push rbx
+    mov rbx, rdi
+
+    mov rdi, [rbx+rows]
+    mov rsi, [rbx+columns]
+
+    call matrixNew ;rax - pointer to new matrix
+
+    mov rcx, [rax+aligned_columns]
+    imul rcx, [rax+aligned_rows]
+
+    mov rdi, [rax+cells] ;cloned matrix pointer
+    mov rsi, [rbx+cells] ;source matrix pointer
+
+    rep movsd
+    mov rdi, rsi ;moves cell values from source matrix to cloned
+
+    pop rbx
+    ret
+
+;Matrix matrixTranspose(Matrix matrix) 
+;
+;description: creates new matrix, which is a result of transposition of given matrix
+;
+;takes: rdi - pointer to source matrix
+;
+;returns; rax - pointer to new matrix
+matrixTranspose:
+    push r12
+    push r13
+    mov r8, rdi
+
+    mov rdi, [r8+columns]
+    mov rsi, [r8+rows]
+    push r8
+    call matrixNew
+    pop r8
+    mov rdi, r8
+
+    mov r8, [rdi+cells] ;source matrix' cells
+    mov r9, [rax+cells] ;new matrix' cells
+    mov r10, [rdi+aligned_rows]
+    mov r11, [rdi+aligned_columns]
+
+    xor rcx, rcx
+
+.outer_loop:
+    xor r12, r12 ;number of cells moved in .inner_loop
+    lea r13, [r9+rcx*4] ;address of first output cell
+
+.inner_loop:
+    movups xmm0, [r8] ;xmm0=a:b:c:d
+    extractps [r13], xmm0, 0 ;[r13] := a
+
+    lea r13, [r13+r10*4] ;update address to the next output cell
+    extractps [r13], xmm0, 1 ;[r13] := b
+
+    lea r13, [r13+r10*4] ;update address to the next output cell
+    extractps [r13], xmm0, 2 ;[r13] := c
+
+    lea r13, [r13+r10*4] ;update address to the next output cell
+    extractps [r13], xmm0, 3 ;[r13] := d
+
+    lea r13, [r13+r10*4]
+    add r8, 16 ;move pointer 4*sizeof float bytes
+    add r12, 4 ;we've moved 4 elements
+    cmp r12, r11 ; if they're equal, so we've transposed the whole line 
+    jb .inner_loop
+
+    inc rcx
+    cmp rcx, r10
+    jb .outer_loop
+
+    pop r13
+    pop r12
+    ret
 
 ;Matrix matrixNew(unsigned int rows, unsigned int columns)
 ;
@@ -114,14 +200,14 @@ matrixGetRows:
 	mov rax, [rdi+rows]
 	ret
 	
-;unsigned int matrixGetColumns(Matrix matrix)
+;unsigned int matrixGetCols(Matrix matrix)
 ;
 ;description: returns number of given matrix' columns
 ;
 ;takes: rdi - pointer to instance of Matrix
 ;
 ;returns: rax - number of columns
-matrixGetColumns:
+matrixGetCols:
 	mov rax, [rdi+columns]
 	ret
 
@@ -177,7 +263,7 @@ matrixScale:
 	movups [r8], xmm1 ;returns changed cells to matrix
 	add r8, 16 ;move output pointer 4*sizeof float bytes
 	sub rcx, 4
-	jnx .mul_loop
+	jnz .mul_loop
 	
 	ret
 	
@@ -190,9 +276,6 @@ matrixScale:
 ;
 ;returns: rax - pointer to new matrix
 matrixAdd:
-	push rdi
-	push rsi
-	
 	;we can sum two matrices only if they have same parameters
 	mov r8, [rdi+columns]
 	mov r9, [rsi+columns]
@@ -204,34 +287,31 @@ matrixAdd:
 	cmp r8, r9 ;check rows
 	jne .invalid_input
 
+    push rsi
 	call matrixClone
-	
-	pop rdi
 	pop rsi
-        
-    mov rcx, [rax+aligned_columns]
-    imul rcx, [rax+aligned_rows] ;get cells' number
+    
+    mov rcx, [rax+aligned_rows]
+    imul rcx, [rax+aligned_columns] ;get cells' number
+    shr rcx, 2
     mov r8, [rax+cells] ;get new matrix' cells' pointer
     mov r9, [rsi+cells] ;pointer to matrix b's cells
 
 .add_loop:
     ;loads 4 cells of both matrix and sum them
-    movups xmm0, [r8]
-    movups xmm1, [r9]
+    movaps xmm0, [r8]
+    movaps xmm1, [r9]
     addps xmm0, xmm1
-    movups [r8], xmm0 ;the result stored in first matrix's copy
+    movaps [r8], xmm0 ;the result stored in first matrix's copy
 
-    ;move output pointer 4*sizeof float bytes
-    add r8, 16
-    add r9, 16
-    sub rcx, 4
+    lea r8, [r8+16]
+    lea r9, [r9+16]
+    dec rcx
     jnz .add_loop
     jmp .finish
 
 .invalid_input:
-    pop rsi
-    pop rdi
-    mov rax, 0
+    xor rax, rax
 
 .finish:
     ret
@@ -255,6 +335,7 @@ matrixMul:
     cmp r8, r9
     jne .invalid_input
 
+    
     mov r8, rdi
     mov r9, rsi
 
@@ -345,87 +426,4 @@ matrixMul:
 
 
 
-;Matrix matrixClone(Matrix matrix)
-;
-;description: creates new matrix, which is a copy of given matrix
-;
-;takes: rdi - pointer to source matrix
-;
-;returns: rax - pointer to new matrix
-matrixClone:
-    push rbx
-    mov rbx, rdi
 
-    mov rdi, [rbx+rows]
-    mov rsi, [rbx+columns]
-
-    call matrixNew ;rax - pointer to new matrix
-
-    mov rcx, [rax+aligned_columns]
-    imul rcx, [rax+aligned_rows]
-
-    pop rbx
-    mov rdi, [rax+cells] ;cloned matrix pointer
-    mov rsi, [rbx+cells] ;source matrix pointer
-
-    rep movsd
-    mov rdi, rsi ;moves cell values from source matrix to cloned
-
-    ret
-
-;Matrix matrixTranspose(Matrix matrix) 
-;
-;description: creates new matrix, which is a result of transposition of given matrix
-;
-;takes: rdi - pointer to source matrix
-;
-;returns; rax - pointer to new matrix
-matrixTranspose:
-    push r12
-    push r13
-    mov r8, rdi
-
-    mov rdi, [r8+columns]
-    mov rsi, [r8+rows]
-    push r8
-    call matrixNew
-    pop r8
-    mov rdi, r8
-
-    mov r8, [rdi+cells] ;source matrix' cells
-    mov r9, [rax+cells] ;new matrix' cells
-    mov r10, [rdi+aligned_rows]
-    mov r11, [rdi+aligned_columns]
-
-    xor rcx, rcx
-
-.outer_loop:
-    xor r12, r12 ;number of cells moved in .inner_loop
-    lea r13, [r9+rcx*4] ;address of first output cell
-
-.inner_loop:
-    movups xmm0, [r8] ;xmm0=a:b:c:d
-    extracps [r13], xmm0, 0 ;[r13] := a
-
-    lea r13, [r13+r10*4] ;update address to the next output cell
-    extracps [r13], xmm0, 1 ;[r13] := b
-
-    lea r13, [r13+r10*4] ;update address to the next output cell
-    extracps [r13], xmm0, 2 ;[r13] := c
-
-    lea r13, [r13+r10*4] ;update address to the next output cell
-    extracps [r13], xmm0, 3 ;[r13] := d
-
-    lea r13, [r13+r10*4]
-    add r8, 16 ;move pointer 4*sizeof float bytes
-    add r12, 4 ;we've moved 4 elements
-    cmp r12, r11 ; if they're equal, so we've transposed the whole line 
-    jb .inner_loop
-
-    inc rcx
-    cmp rcx, r10
-    jb .outer_loop
-
-    pop r13
-    pop r12
-    ret

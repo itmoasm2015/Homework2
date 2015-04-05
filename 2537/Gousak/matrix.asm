@@ -1,22 +1,22 @@
 section .text
 
 extern calloc
-extern calloc
+extern malloc
 extern free
 
-global matrixNew        ;done
-global matrixDelete     ;done
-global matrixGetRows    ;done
-global matrixGetCols    ;done
-global matrixGet        ;done
-global matrixSet        ;done
-global matrixScale      ;done
+global matrixNew
+global matrixDelete
+global matrixGetRows
+global matrixGetCols
+global matrixGet
+global matrixSet
+global matrixScale
 global matrixAdd
 global matrixMul
 
 ; auxillary functions
-global matrixCopy       ;done
-global matrixTranspose  ;done
+global matrixCopy
+global matrixTranspose
 
 SIZE_OF_FLOAT EQU 4
 
@@ -281,7 +281,7 @@ matrixAdd:
 
     add r8, 4 * SIZE_OF_FLOAT
     add r9, 4 * SIZE_OF_FLOAT
-    
+
     sub rcx, 4              ; keep processing by 4 cells
     jnz .add_loop 
     jmp .return
@@ -292,4 +292,111 @@ matrixAdd:
     mov rax, 0
 
 .return:
+    ret
+
+;Matrix matrixMul(Matrix a, Matrix b) 
+;Creates new matrix c = a * b
+;args   : RDI - pointer to matrix a
+;         RSI - pointer to matrix b
+;returns: RAX - pointer to new matrix
+matrixMul:
+    push r14
+    push r15
+    push rbp
+
+    ; Check if we're allowed to mul matrices (m*n and n*p)
+    mov r8, [rdi + cols]
+    mov r9, [rsi + rows]
+    cmp r8, r9
+    jne .invalid_input
+
+    
+    mov r8, rdi
+    mov r9, rsi
+
+    xchg rdi, rsi        ; swap them, so we can transpose matrix b
+
+    push r8
+    push r9
+
+    call matrixTranspose ; we need to transpose matrix
+                         ; in RSI, the result is in RAX  
+
+    mov rbp, rax         ; store transposed matrix in RBP
+
+    pop r9
+    pop r8
+
+    ; Calculate parameters of the result matrix
+    mov rdi, [r8 + rows]
+    mov rsi, [r9 + cols]
+
+    push r9
+    push r8
+
+    call matrixNew ; create new matrix in RAX with parameters m and p
+
+    pop r8
+    pop r9
+    mov rdi, r8
+    mov rsi, r9
+    mov r8, [rdi + cells] ; first matrix' cells
+    mov r9, [rbp + cells] ; transposed second matrix' cells
+    mov r14, [rax + cells] ; result matrix' cells
+    mov r10, [rsi + aligned_cols]
+    mov r11, [rdi + aligned_rows]
+
+    mov rdx, [rdi + aligned_cols]
+    shl rdx, 2 ; size of one row in bytes
+
+    mov rsi, r9
+    mov rdi, r10
+
+.outer_loop:
+    mov r10, rdi
+    mov r9, rsi
+
+.inner_loop:
+    xor r15, r15     ; R15 - number of moved elements in one iteration
+    xorps xmm0, xmm0 ; temp var for storing sum
+
+.sum_loop:
+    movups xmm1, [r8+r15] ; XMM1 = a:b:c:d
+    movups xmm2, [r9+r15] ; XMM2 = e:f:g:h
+    mulps xmm1, xmm2      ; XMM1 = a*e : b*f : c*g : d*h
+    haddps xmm1, xmm1     ; XMM1 = a*e + b*f : c*g + d*h : a*e + b*f : c*g + d*h
+    haddps xmm1, xmm1     ; XMM1 = a*e + b*f + c*g + d*h : ...
+    addps xmm0, xmm1      ; add current result to our temp variable
+
+    add r15, 4 * SIZE_OF_FLOAT ; move pointer
+    cmp r15, rdx               ; check if we got to the end of the line
+    jb .sum_loop
+
+    add r9, rdx 
+    movss [r14], xmm0     ; move current result to new matrix
+    add r14, 4
+    dec r10
+    jnz .inner_loop       ; continue with next line
+
+    add r8, rdx 
+    dec r11
+    jnz .outer_loop       ; found the result
+
+    push rax
+    mov rdi, rbp
+    call matrixDelete     ; delete transposed second matrix
+
+    pop rax
+    jmp .return
+
+.invalid_input:
+    mov rax, 0
+    pop rbp
+    pop r15
+    pop r14
+    ret 
+.return:
+    pop rbp ; restore registers
+    pop r15
+    pop r14
     ret

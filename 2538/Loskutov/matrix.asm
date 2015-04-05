@@ -179,11 +179,11 @@ matrixAdd:
     push         r9
     mov          edi,  [r8 + rows_offset]
     mov          esi,  [r8 + cols_offset]
-    sub          rsp, 24                      ; subtract 16 + 8 to provide the 16-byte alignment
+    sub          rsp, 16                      ; subtract 16 bytes for xmm0
     movdqa       [rsp], xmm0                  ; save xmm0 to the stack
     call         matrixNew                    ; create a new matrix with the corresponding size
     movdqa       xmm0, [rsp]                  ; pop xmm0 back
-    add          rsp, 24
+    add          rsp, 16
     pop          r9
     pop          r8
     pop          rcx

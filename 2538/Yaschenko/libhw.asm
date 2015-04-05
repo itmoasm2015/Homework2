@@ -185,6 +185,7 @@ matrixScale:
 .return:
 	ret
 
+
 ;; Matrix matrixAdd(Matrix a, Matrix b);
 ;;
 ;; Multiplies matrix A by matrix B and returns pointer to resulting
@@ -195,45 +196,49 @@ matrixScale:
 ;; Returns:
 ;;	* RAX: pointer to resulting matrix C.
 matrixAdd:
-	push rdi
-	push rsi
+	mov	rax, [rdi + Matrix.rows]
+	cmp	rax, [rsi + Matrix.rows]
+	jne	.bad_dims
 
-	mov rax, [rdi + Matrix.rows]
-	cmp rax, [rsi + Matrix.rows]
-	jne .bad_dims
+	mov	rax, [rdi + Matrix.cols]
+	cmp	rax, [rsi + Matrix.cols]
+	jne	.bad_dims
 
-	mov rax, [rdi + Matrix.cols]
-	cmp rax, [rsi + Matrix.cols]
-	jne .bad_dims
+	push	rdi
+	push	rsi
 
-	mov rsi, [rdi + Matrix.cols]
-	mov rdi, [rdi + Matrix.rows]
-	call matrixNew
+	mov 	rsi, [rdi + Matrix.cols]
+	mov 	rdi, [rdi + Matrix.rows]
+	call	matrixNew
 
-	pop rsi
-	pop rdi
+	pop	rsi
+	pop	rdi
 
-	mov rcx, [rdi + Matrix.rowsAligned]
-	imul rcx, [rdi + Matrix.colsAligned]
-	sub rcx, 4
+	mov	rcx, [rdi + Matrix.rowsAligned]
+	imul	rcx, [rdi + Matrix.colsAligned]
 
-	mov r8, [rdi + Matrix.data]
-	mov r9, [rsi + Matrix.data]
-	mov r10, [rax + Matrix.data]
+	mov r8,	[rdi + Matrix.data]
+	mov r9,	[rsi + Matrix.data]
+	mov r10,[rax + Matrix.data]
+
+	xor rdx, rdx
 
 .loop_add:
-	movups xmm0, [r8 + 4 * rcx]
-	addps xmm0, [r9 + 4 * rcx]
-	movups [r10 + 4 * rcx], xmm0
-	sub rcx, 4
-	jns .loop_add
-
+	movups	xmm0, [r8]
+	addps	xmm0, [r9]
+	movups	[r10], xmm0
+	add	rdx, 4 * 4
+	add	r8,  4 * 4
+	add	r9,  4 * 4
+	add	r10, 4 * 4
+	cmp	rdx, rcx
+	jne	.loop_add
+	
+.end_loop_add:
 	ret
 
 .bad_dims:
-	pop rsi
-	pop rdi
-	xor rax, rax
+	xor	rax, rax
 	ret
 
 ;; Matrix matrixMul(Matrix a, Matrix b);

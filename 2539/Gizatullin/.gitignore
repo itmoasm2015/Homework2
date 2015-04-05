@@ -1,5 +1,5 @@
 *
 !libhw.asm
 !Makefile
-!matrix.h
+!cmatrix.h
 !.gitignore

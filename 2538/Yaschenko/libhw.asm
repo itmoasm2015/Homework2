@@ -1,17 +1,5 @@
-section .bss
-	a:	resq 1
-	n:	resq 1
-	mn1:	resq 1
-	count:	resq 1
-	first:	resq 1
-	last:	resq 1
-	cycle:	resq 1
-
-section .text
-
-extern free
-extern malloc
 extern calloc
+extern free
 
 global matrixNew
 global matrixDelete
@@ -24,14 +12,21 @@ global matrixAdd
 global matrixMul
 global matrixTranspose
 
+section .text
 
 struc Matrix
-	.rows:		resq 1					; Rows count in matrix.
-	.cols:		resq 1					; Columns count in matrix.
-	.data:		resq 1					; Pointer to matrix elements.
-	.rowsAligned:	resq 1					; Aligned to 4 (up) rows count.
-	.colsAligned:	resq 1					; Aligned to 4 (up) columns count.
+	.rows:		resq 1				; Rows count in matrix.
+	.cols:		resq 1				; Columns count in matrix.
+	.data:		resq 1				; Pointer to matrix elements.
+	.rowsAligned:	resq 1				; Aligned to 4 (up) rows count.
+	.colsAligned:	resq 1				; Aligned to 4 (up) columns count.
 endstruc
+
+%macro align_4 1
+	add	%1, 3
+	shr	%1, 2
+	shl	%1, 2
+%endmacro
 
 ;; Matrix matrixNew(unsigned int rows, unsigned int cols);
 ;;
@@ -42,45 +37,39 @@ endstruc
 ;; Returns:
 ;;	* RAX: pointer to newly created matrix.
 matrixNew:
-	push rsi
-	push rdi
-	mov rdi, Matrix_size
-	call malloc
-	pop rdi
-	pop rsi
+	push	rdi
+	push	rsi
 
-	mov [rax + Matrix.rows], rdi
-	mov [rax + Matrix.cols], rsi
+	mov	rdi, 1
+	mov	rsi, Matrix_size
+	call	calloc
+	mov	rdx, rax
 
-	add rdi, 3
-	shr rdi, 2
-	shl rdi, 2
+	pop	rsi
+	pop	rdi
 
-	add rsi, 3
-	shr rsi, 2
-	shl rsi, 2
+	mov	[rdx + Matrix.rows], rdi
+	mov	[rdx + Matrix.cols], rsi
 
-	mov [rax + Matrix.rowsAligned], rdi
-	mov [rax + Matrix.colsAligned], rsi
+	align_4	rdi
+	align_4	rsi
 
-	imul rdi, rsi
-	mov rcx, rdi
-	shl rdi, 2
+	mov	[rdx + Matrix.rowsAligned], rdi
+	mov	[rdx + Matrix.colsAligned], rsi
 
-	push rdx
-	push rcx
-	call malloc
-	pop rcx
-	pop rdx
+	push	rdx
 
-	mov [rdx + Matrix.data], rax
+	imul	rdi, rsi
+	mov	rsi, 4
+	call	calloc
 
-	.zero_loop:
-		mov dword [rax + rcx * 4 - 4], 0
-		LOOP .zero_loop
+	pop	rdx
+	mov	[rdx + Matrix.data], rax
+	mov	rax, rdx
 
-	mov rax, rdx
 	ret
+
+
 
 
 ;; void matrixDelete(Matrix matrix);
@@ -265,6 +254,88 @@ matrixMul:
 	jne .bad_dims
 
 	push rdi
+	mov rdi, rsi
+	call matrixTranspose
+	mov rsi, rax
+	pop rdi
+
+	push rdi
+	push rsi
+	mov rdi, [rdi + Matrix.rows]
+	mov rsi, [rsi + Matrix.rows]		; rows since it has been transposed
+	call matrixNew
+	mov rdx, rax
+	pop rsi
+	pop rdi
+
+	mov r8, [rdi + Matrix.rowsAligned]
+	mov r9, [rdi + Matrix.colsAligned]
+	mov r10, [rsi + Matrix.rowsAligned]
+
+	mov rdi, [rdi + Matrix.data]
+	mov rsi, [rsi + Matrix.data]
+
+	push r12
+	push r13
+	push r14
+
+	xor r11, r11
+.loop_i:
+	xor r13, r13
+.loop_j:
+	mov r12, r11
+	imul r12, r9
+	imul r12, 4
+	add r12, rdi
+
+	mov r14, r13
+	imul r14, r9
+	imul r14, 4
+	add r14, rsi
+
+	xor rcx, rcx
+	xorps xmm0, xmm0
+.loop_k:
+	movups xmm1, [r12]
+	mulps xmm1, [r14]
+	haddps xmm1, xmm1
+	haddps xmm1, xmm1
+	addss xmm0, xmm1
+
+	add r12, 16
+	add r14, 16
+	add rcx, 4
+	cmp rcx, r9
+	jne .loop_k
+
+	movss [rdx], xmm0
+	add rdx, 4
+
+	inc r13
+	cmp r13, r10
+	jne .loop_j
+
+	inc r11
+	cmp r11, r8
+	jne .loop_i
+
+	pop r14
+	pop r13
+	pop r12
+
+	ret
+
+.bad_dims:
+	xor rax, rax
+	ret
+
+
+matrixMull:
+	mov rax, [rdi + Matrix.cols]
+	cmp rax, [rsi + Matrix.rows]
+	jne .bad_dims
+
+	push rdi
 	push rsi				; stack: *B | *A | ...
 
 	mov rdi, [rdi + Matrix.rows]
@@ -280,14 +351,18 @@ matrixMul:
 	mov rdi, [rsp + 16]
 	mov rsi, [rsp + 8]
 
-	mov rsi, rax				; RSI - B^T
+	push rax				; stack: *B^T | *C | *B | *A | ...
 
+	mov rax, [rsp + 8]
 	mov r11, [rax + Matrix.rowsAligned]
 	mov r12, [rax + Matrix.colsAligned]
+	mov rax, [rsp]
+
+	mov rsi, rax				; RSI - B^T
 
 	mov rdi, [rdi + Matrix.data]
 	mov rsi, [rsi + Matrix.data]
-	mov rax, [rsp]
+	mov rax, [rsp + 8]
 	mov rax, [rax + Matrix.data]
 
 	xor r8, r8 				; i loop counter
@@ -325,7 +400,7 @@ matrixMul:
 	cmp r8, r11				; rows end
 	jne .loop_i
 
-	mov rdi, [rsp + 8]			; resotre matrix C pointer
+	mov rdi, [rsp]				; resotre matrix C pointer
 	call matrixDelete 
 
 	pop rax

@@ -13,6 +13,7 @@ global matrixSet
 global matrixScale
 global matrixAdd
 global matrixMul
+global matrixTranspose
 
 
 ;we need to align rows and columns to the nearest greter 4-div number
@@ -209,4 +210,139 @@ matrixAdd:
 ;       rsi = pointer to matrix B
 ;out <- rax = pointer to matrix C=A*B(if it possible)
 matrixMul:
-  ;to be continued...
+  
+  mov r8, [rdi + columns] ;if (matrixGetColumns(A)!=matrixGetRows(B))
+  mov r9, [rsi + rows] ; Multiplication is impossible
+  cmp r8, r9
+  jne .error
+  
+  push rdi
+  push rsi ; save pointers to matrixes
+  
+  mov rdi, [rdi+rows]
+  mov rsi, [rsi+columns]
+  call matrixNew ; create a new matrix, which will become a result of multiplication
+  mov r10, rax ; save pointer to new matrix to r10
+  
+  pop rsi
+  pop rdi
+  xchg rdi, rsi
+  call matrixTranspose ; it's better to transpose matrix B, because multiply row by row easier, then row by column
+  
+  ;rax = poiner to transposed matrix B
+  ;rsi = pointer to matrix A
+  ;r10 = poiner to A*B
+  mov r8, [rsi + alignedColumns]
+  mov r9, [rsi + alignedRows]
+  mov r11, [rax + alignedRows] ; take sizes of our matrixes
+
+  
+  mov rax, [rax + elements]
+  mov rsi, [rsi+ elements]
+  mov rdi, [r10 + elements] ; take lements of out matrixes
+  xor rbx, rbx
+  xorps xmm2, xmm2;it will be element of matrix (A*B) which calculate now
+
+  
+.nextRowLoop:
+  cmp rbx, r9 ; if counter1 == matrixGetRows(A) - finish
+  je .end
+  push rax ; save current position in matrix B
+  inc rbx ;counter1++
+  xor rcx, rcx 
+  
+      
+  
+.oneRowLoop:
+  cmp rcx, r11; if counter2 == matrixGetRows(B) - go to next row in A
+  je .goToNextRow
+  push rax ; save current positions in matrixes B
+  push rsi ; and A
+  xor rdx, rdx
+  inc rcx ;counter2++
+
+  
+.oneElementLoop:
+  cmp rdx, r8 ; if counter3==matrixGetColumns(B) - let's calculate next element
+  je .goToNextElement
+  movups xmm0, [rsi]  ;take four elements from A (a:b:c:d)
+  movups xmm1, [rax] ;take four elemnets from B (w:x:y:z)
+  mulps xmm0, xmm1 ;(a*w : b*x : c*y : d*z)
+  haddps xmm0, xmm0;(a*w+b*x : c*y+d*z : a*w+b*x : c*y + d*z)
+  haddps xmm0, xmm0;(a*w+b*x+c*y+d*z : a*w+b*x+c*y+d*z : ... : ...)
+  addps xmm2, xmm0;add result of previous operation to element
+  lea rsi, [rsi+16]; go to next element in matrixes A
+  lea rax, [rax+16]; and B
+  add rdx, 4;counter3+=4
+  jmp .oneElementLoop
+  
+.goToNextRow:
+  pop rax
+  lea rsi, [rsi+4*r8] ; go to next row in matrix A
+  jmp .nextRowLoop
+  
+.goToNextElement:
+  pop rsi
+  pop rax
+  extractps [rdi], xmm2, 0 ; take first float in xmm2 and write it to matrix A*B
+  xorps xmm2, xmm2; xmm2 = 0
+  lea rdi, [rdi+4]; go to next element in A*B
+  lea rax, [rax+4*r8]; go to next row in matrix B
+  jmp .oneRowLoop
+
+  
+.error:
+  xor rax, rax ; return rax = 0
+  ret
+  
+.end:
+  mov rax,r10 ; return rax = pointer to A*B
+  ret
+  
+;Matrix matrixTranspose(Matrix a)
+;in->rdi = pointer to matrix A
+;out<-rax = pointer to transposed matrix At
+matrixTranspose:
+  push rsi 
+  push rdi
+  push r10 ; save some registers which was used before
+  mov rbx, rdi ; save pointer to matrix
+  mov rdi, [rbx+columns]
+  mov rsi, [rbx+rows]
+  
+  call matrixNew ; create new matrix [rdi, rsi]
+  
+  mov r8, [rax + elements] ; pointer to elements of At
+  mov r9, [rbx + elements] ; pointer to elements of A
+  xor r10, r10
+  mov rdi, [rbx + alignedColumns]
+  mov rsi, [rbx + alignedRows]
+
+.nextColumnLoop:
+  cmp r10, rdi ; if counter1 == number of columns - finish
+  je .end
+  xor rcx, rcx; counter2=0
+  push r9; save position in first raw
+  
+.readOneColumnLoop:
+  movups xmm0, [r9] ; get one element from A
+  extractps [r8], xmm0, 0 ; save it to At
+  add r8, 4 ; go to next element in At
+  lea r9, [r9+rdi*4] ; go to next row in A
+  inc rcx; counter2++
+  cmp rcx, rsi ; if counter2==number of rows - read next column
+  je .goToNextColumn
+  jmp .readOneColumnLoop
+  
+.goToNextColumn:
+  inc r10 ; counter1++
+  pop r9 ; get position in first raw
+  lea r9, [r9+4] ; go to next column (in first raw)
+  jmp .nextColumnLoop
+
+.end:
+  pop r10
+  pop rdi
+  pop rsi
+  ret
+  

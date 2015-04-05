@@ -396,11 +396,11 @@ matrixMul:
 matrixTranspose:
 	push rdi
 
-	mov rbx, rdi
-	mov rsi, [rbx + Matrix.rows]
-	mov rdi, [rbx + Matrix.cols]
+	mov rdx, rdi
+	mov rsi, [rdx + Matrix.rows]
+	mov rdi, [rdx + Matrix.cols]
 
-	push rbx
+	push rdx
 	push rsi
 	push rdi
 
@@ -408,12 +408,12 @@ matrixTranspose:
 
 	pop rdi
 	pop rsi
-	pop rbx
+	pop rdx
 
-	mov rbx, [rsp]
-	mov rsi, [rbx + Matrix.rowsAligned]
-	mov rdi, [rbx + Matrix.colsAligned]
-	mov rbx, [rbx + Matrix.data]
+	mov rdx, [rsp]
+	mov rsi, [rdx + Matrix.rowsAligned]
+	mov rdi, [rdx + Matrix.colsAligned]
+	mov rdx, [rdx + Matrix.data]
 
 	xor r8, r8
 .loop_i:
@@ -423,10 +423,10 @@ matrixTranspose:
 	imul r10, rsi
 	add r10, r8
 	shl r10, 2
-	movss xmm0, [rbx]
+	movss xmm0, [rdx]
 	add r10, [rax + Matrix.data]
 	movss [r10], xmm0
-	add rbx, 4
+	add rdx, 4
 	inc r9
 	cmp r9, rdi
 	jne .loop_j

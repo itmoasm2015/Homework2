@@ -5,10 +5,10 @@ extern calloc
 extern free
 
 global matrixNew        ;done
-global matrixDelete
-global matrixGetRows
-global matrixGetCols
-global matrixGet
+global matrixDelete     ;done
+global matrixGetRows    ;done
+global matrixGetCols    ;done
+global matrixGet        ;done
 global matrixSet
 global matrixScale
 global matrixAdd
@@ -16,7 +16,7 @@ global matrixMul
 
 ; auxillary functions
 global matrixCopy       ;done
-global matrixTranspose
+global matrixTranspose  ;done
 
 SIZE_OF_FLOAT EQU 4
 
@@ -26,6 +26,18 @@ SIZE_OF_FLOAT EQU 4
     add %1, 3
     shr %1, 2
     shl %1, 2
+%endmacro
+
+;macro to find the pointer to cell
+;row = RSI
+;col = RDX
+;matrix_start = RDI
+%macro get_cell_pointer 0
+    imul rsi, [rdi + aligned_cols]
+    add rsi, rdx           ; RSI =  cell's number
+    shl rsi, 2             ; RSI * 4 = cell's start
+    mov rax, [rdi + cells] ; RAX = pointer to cell
+    add rax, rsi
 %endmacro
 
 struc Matrix
@@ -149,4 +161,83 @@ matrixTranspose:
 
     pop r13     ; restore registers
     pop r12
+    ret
+
+;void matrixDelete(Matrix matrix)
+;Deletes matrix
+;args:      RDI - pointer to of matrix
+;returns:   void
+matrixDelete:
+    push rdi
+    mov rdi, [rdi + cells]
+    call free ; deletes cells
+
+    pop rdi
+    call free ; deletes entire matrix
+    ret
+
+;unsigned int matrixGetRows(Matrix matrix)
+;Gets the number of rows
+;args:      RDI - pointer to matrix
+;returns:   RAX - number of rows
+matrixGetRows
+    mov rax, [rdi + rows]
+    ret
+
+;unsigned int matrixGetCols(Matrix matrix)
+;Gets the number of cols
+;args:      RDI - pointer to matrix
+;returns:   RAX - number of columns
+matrixGetCols
+    mov rax, [rdi + cols]
+    ret
+
+;float matrixGet(Matrix matrix, unsigned int row, unsigned int col)
+;Gets the value of the cell
+;args:      RDI  - pointer to matrix
+;           RSI  - row index
+;           RDX  - column index
+;returns:   XMM0 - value of the cell
+matrixGet:
+    get_cell_pointer
+    movss xmm0, [rax]
+    ret
+
+;void matrixSet(Matrix matrix, unsigned int row, unsigned int col, float value)
+;Sets the value of the cell
+;args:      RDI  - pointer to matrix
+;           RSI  - row index
+;           RDX  - column index
+;           XMM0 - desired cell's value 
+;returns:   void
+matrixSet:
+    get_cell_pointer
+    movss [rax], xmm0
+    ret
+
+;Matrix matrixScale(Matrix matrix, float k)
+;Multiplies matrix' cells by k
+;args:      RDI  - pointer to matrix
+;           XMM0 - coefficient
+;returns:   RAX  - pointer to new matrix
+matrixScale:
+    ; boldly stolen this trick from my friend's code
+    ; gets 4 instances of the coefficient in XMM0
+    punpckldq xmm0, xmm0 ; ?:?:k:k
+    punpckldq xmm0, xmm0 ; k:k:k:k
+
+    call matrixCopy
+
+    mov rcx, [rax + aligned_rows]
+    imul rcx, [rax + aligned_cols] ; calculate the number of cells
+    mov r8, [rax + cells]          ; pointer to the copy's cells
+
+.mul_loop:
+    movups xmm1, [r8]         ; load a vector of cells
+    mulps xmm1, xmm0          ; multiply by XMM0
+    movups [r8], xmm1         ; return the values to the respective cells
+    add r8, 4 * SIZE_OF_FLOAT ; move the pointer
+    sub rcx, 4                ; keep scaling by 4 cells
+    jnz .mul_loop
+
     ret

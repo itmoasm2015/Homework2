@@ -22,15 +22,16 @@ extern free
 %endmacro
 
 ; void getidx(matrix m, int i, int j, int &result);
+; return m.cols * i + j
 %macro getidx 4
     push rax
-    push rdx
+    push rdx ; save registers
     mov eax, [%1 + 4]
     align4 eax
     mul %2
     add eax, %3
     mov %4, eax
-    pop rdx
+    pop rdx ; restore regiters
     pop rax
 %endmacro
 
@@ -50,16 +51,21 @@ matrixNew:
     mov eax, r8D
     mul r9D ; rax now contains size of matrix
     
-    lea rdi, [rax + 2]    
-    mov rsi, 4
+    lea rdi, [rax + 2] ; cols * rows + 2 element
+    mov rsi, 4         ; each of them -- 4 bytes
     push r10
     push r11
     call calloc ; return ptr to (rows * cols + 2) * 4 zero bytes
     pop r11
     pop r10
-    mov [eax], r10D
-    mov [eax + 4], r11D
+    
+    test rax, rax
+    jz .end ; if rax = 0 then return
 
+    mov [rax], r10D     ; rows
+    mov [rax + 4], r11D ; columns
+    
+    .end
     ret
 
 ; void matrixDelete(matrix matrix);
@@ -92,7 +98,7 @@ matrixGet:
     mul esi
     add eax, r9D ; rax now is real pos in matrix: cols * row + col
 
-    lea rax, [rdi + rax * 4 + 4 * 2] 
+    lea rax, [rdi + rax * 4 + 4 * 2] ; ptr to matrix, skip rax elements and skip rows and cols fields
     movss xmm0, [rax]
     ret
 
@@ -164,15 +170,15 @@ matrixAdd:
 
     mov r8D, [rdi]
     mov r9D, [rsi]
-    cmp r8D, r9D
+    cmp r8D, r9D ; check a.rows == b.rows
     jne .notEqualDimensions
     mov r8D, [rdi + 4]
     mov r9D, [rsi + 4]
-    cmp r8D, r9D
+    cmp r8D, r9D ; check a.cols == b.cols
     jne .notEqualDimensions
     jmp .equalDimensions
     .notEqualDimensions    
-        mov eax, 0
+        mov eax, 0 ; return nullptr if matrix are incompatible
         pop r12
         pop rbx
         pop rbp
@@ -180,8 +186,8 @@ matrixAdd:
 .equalDimensions
     mov r8D, [rdi]
 
-    mov rbp, rdi
-    mov rbx, rsi
+    mov rbp, rdi ; rbp is ptr to matrix a
+    mov rbx, rsi ; rbx is ptr to matrix b
     mov edi, r8D
     mov esi, r9D
     push r8
@@ -189,20 +195,20 @@ matrixAdd:
     call matrixNew
     pop r9
     pop r8
-    mov r12, rax
+    mov r12, rax ; rax -- ptr on result matrix
    
     align4 r8D
-    align4 r9D
+    align4 r9D ; r8, d9 -- real size
     
     xor rax, rax
     mov eax, r8D
-    mul r9D
+    mul r9D ; rax -- size of matrix
     
     .loop
-        sub rax, 4
+        sub rax, 4 ; iterate every 4 elements from end to begin
         movups xmm0, [rbp + 4 * rax + 8]
         movups xmm1, [rbx + 4 * rax + 8]
-        addps xmm0, xmm1
+        addps xmm0, xmm1 ; sse addition
         movups [r12 + 4 * rax + 8], xmm0
         test eax, eax
         jnz .loop
@@ -220,12 +226,13 @@ matrixMul:
     push rbp
     push rbx
     push r12
-    push r15
+    push r15 ; save regisers
 
+    ; if a: [NxM] matrix, b: [MxK] matrix, then r8 = N, r9 = K, r10 = M (result is [NxK])
     mov r8D, [rdi + 4]
     mov r9D, [rsi]
     cmp r8D, r9D
-    je .equalDimensions
+    je .equalDimensions ; incompatible
         mov eax, 0
         pop r15
         pop r12
@@ -238,18 +245,27 @@ matrixMul:
     mov r9D, [rsi + 4]
     mov r10D, [rdi + 4]
 
-    mov rbp, rdi
-    mov rbx, rsi
+    mov rbp, rdi ; rbp = matrix a
+    mov rbx, rsi ; rbx = matrix b
     mov edi, r8D
     mov esi, r9D
     push r10
-    call matrixNew
+    call matrixNew ; allocating result matrix
     pop r10
-    mov r12, rax
+    test rax, rax
+    jnz .sizeOk ; if rax = 0 then return nullptr immediatly
+        mov eax, 0
+        pop r15
+        pop r12
+        pop rbx
+        pop rbp
+        ret        
+    .sizeOk
+    mov r12, rax ; r12 -- result
 
     align4 r8D
     align4 r9D
-    align4 r10D
+    align4 r10D ; real sizes of matrixes
 
     ; for j = b.m-1..0
     ;   for i = b.n-1..0
@@ -259,64 +275,56 @@ matrixMul:
     ;       res[i][j] += a[i][k] * buf[k]
     ; j = rsi, buf = rax, i = rdx, k = rdi
     ; a = rbp, b = rbx, res = r12
+    ;
 
-    ;mov edi, r10d
-    lea edi, [r10 + 4 * r10]
+    lea edi, [r10 + 3 * r10]
     push r10
-    call malloc
+    call malloc ; allocating buf: r10 floats
     pop r10
     
-    xor rsi, rsi
+    xor rsi, rsi ; zero-initialization
     xor rdx, rdx
     xor rdi, rdi
     xor r11, r11
     xor r15, r15
 
-    mov esi, [rbx + 4]
+    mov esi, [rbx + 4] ; j-counter
     .loop1
         dec esi
-        mov edx, r10D
+        mov edx, r10D ; i-counter
         .loop2
             dec edx
-            getidx rbx, edx, esi, r11D
+            getidx rbx, edx, esi, r11D ; get idx of (i, j) pos in b matrix
             mov r15D, [rbx + r11 * 4 + 8]
-            mov [rax + rdx * 4], r15D
+            mov [rax + rdx * 4], r15D ; write in buf
             test edx, edx
             jnz .loop2
 
-        mov edx, [rbp]
+        mov edx, [rbp] ; i-counter
         .loop3
             dec edx
             
-            xorps xmm0, xmm0
+            xorps xmm0, xmm0 ; xmm0 to zero
+                             ; xmm0 -- buffer with sum a[i][k] * b[k][j]
             
-            mov edi, r10D
+            mov edi, r10D ; k-counter with 4-step
             .loop4
                 sub edi, 4
 
-                getidx rbp, edx, edi, r11D
+                getidx rbp, edx, edi, r11D ; pos of (i, k) in a matrix
                 movups xmm1, [rbp + r11 * 4 + 8]
                 movups xmm2, [rax + rdi * 4]
                 mulps xmm1, xmm2
-                addps xmm0, xmm1
+                addps xmm0, xmm1 ; add everything to xmm0
 
                 test edi, edi
                 jnz .loop4
 
-            sub rsp, 16
-            movups [rsp], xmm0
-            xorps xmm0, xmm0
-            movss xmm1, [rsp]
-            addss xmm0, xmm1
-            movss xmm1, [rsp + 4]
-            addss xmm0, xmm1
-            movss xmm1, [rsp + 8]
-            addss xmm0, xmm1
-            movss xmm1, [rsp + 12]
-            addss xmm0, xmm1
-            add rsp, 16
+            ; sum 4 floats in xmm0
+            haddps xmm0, xmm0
+            haddps xmm0, xmm0
             
-            getidx r12, edx, esi, r11D
+            getidx r12, edx, esi, r11D ; put pos of (i, j) in result matrix to r11
             movss [r12 + r11 * 4 + 8], xmm0
     
             test edx, edx
@@ -326,7 +334,7 @@ matrixMul:
         jnz .loop1
 
     mov rdi, rax
-    call free
+    call free ; deallocate buffer
     mov rax, r12
 
     pop r15

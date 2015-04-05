@@ -340,10 +340,10 @@ matrixMul:
         pop      rax
 
         inc      ebx
-        cmp      ebx, [rax + cols_offset]
+        cmp      ebx, [rax + cols_aligned_offset]
         jl       .loop_cols
       inc        ecx
-      cmp        ecx, [rax + rows_offset]
+      cmp        ecx, [rax + rows_aligned_offset]
       jl         .loop_rows
 
     pop          rbp

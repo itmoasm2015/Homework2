@@ -5,7 +5,7 @@
 int main()
 {
     printf("Testing work:\n");
-    int n = 1;
+    int n = 9;
     int m = 1;
     Matrix a = matrixNew(n, m);
     for (int i = 0; i < matrixGetRows(a); i++)
@@ -45,7 +45,8 @@ int main()
     /*c = matrixAdd(a, matrixNew(1, 1));
     if (c == NULL)
         printf("Yeah\n"), c = matrixNew(3, 3);*/
-    Matrix e = matrixMul(matrixNew(1, 1), matrixNew(1, 1));
+    Matrix e = matrixMul(c, d);
+    printf("%i %i\n", matrixGetRows(e), matrixGetCols(e));
     for (int i = 0; i < matrixGetRows(e); i++)
     {
         for (int j = 0; j < matrixGetCols(e); j++)

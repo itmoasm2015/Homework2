@@ -247,7 +247,7 @@ matrixTranspose:
     push         rbx
     mov          ecx, [r8 + rows_offset]
     mov          rdi, rax
-    mov          r9, [r8 + rows_offset]
+    xor          rax, rax
     .loop_rows
       dec        ecx
       mov        ebx, [r8 + cols_offset]
@@ -301,49 +301,50 @@ matrixMul:
     jz           .return                      ; return NULL if couldn’t create the result matrix
     push         rbx
     push         rbp
-    xor          ebx, ebx
-    xor          ebp, ebp
-    xor          ecx, ecx
+    xor          rcx, rcx
     .loop_rows
-      xor        ebx, ebx
+      xor        rbx, rbx
       .loop_cols
-        xor      ebp, ebp          ; not sure if using ebp as a counter is a good idea, but why not?
-        xorps   xmm1, xmm1         ; the accumulator
+        xor      rbp, rbp          ; not sure if using ebp as a counter is a good idea, but why not?
+        xorps    xmm1, xmm1        ; the accumulator
         .loop_sum
           push   rax
           push   rcx               ; matrixGet inlined twice, modified for getting 4 values at once
+          xor    rax, rax
           mov    eax, [r8 + cols_aligned_offset]
-          mul    rbx
-          add    rax, rbp
+          mul    rcx
+          add    eax, ebp
           movaps xmm2, [rax*4 + r8 + data_offset]
           mov    rcx, [rsp]        ; get rcx from the stack
+          xor    rax, rax
           mov    eax, [r9 + cols_aligned_offset]
-          mul    rcx
-          add    rax, rbp
+          mul    rbx
+          add    eax, ebp
           movaps xmm0, [rax*4 + r9 + data_offset]
           pop    rcx
           pop    rax
           dpps   xmm0, xmm2, 0xF1  ; calculate the dot product...
                                    ;; there’s no AVX instruction to calculate the dot product
                                    ;; of 8 floats, so SSE is probably the best choise here
-          addps  xmm1, xmm0        ; ...and add it to the accumulator
+          addss  xmm1, xmm0        ; ...and add it to the accumulator
 
           add    ebp, 4
-          cmp    ebp, [r9 + cols_offset]
+          cmp    ebp, [r9 + cols_offset] ;   4
           jl     .loop_sum
         mov      rdi, rax
         push     rax
+        xor      rax, rax
         mov      eax, [rdi + cols_aligned_offset]  ; put the result into the matrix (matrixSet inlined)
-        mul      rbx
-        add      rax, rcx
+        mul      rcx
+        add      rax, rbx
         movss    [rax*4 + rdi + data_offset], xmm1
         pop      rax
 
         inc      ebx
-        cmp      ebx, [rax + cols_aligned_offset]
+        cmp      ebx, [rax + cols_offset] ; 5
         jl       .loop_cols
       inc        ecx
-      cmp        ecx, [rax + rows_aligned_offset]
+      cmp        ecx, [rax + rows_offset]          ; 3
       jl         .loop_rows
 
     pop          rbp

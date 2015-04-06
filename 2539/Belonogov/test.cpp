@@ -52,10 +52,14 @@ struct myMatrix {
         int k = b.data[0].size();
         assert(m == (int)b.data.size());
         myMatrix c(n, k);
-        for (int i = 0; i < n; i++)
-            for (int j = 0; j < k; j++)
+        for (int j = 0; j < k; j++) {
+            vector < float > tmp(b.data.size());
+            for (int r = 0; r < m; r++)
+                tmp[r] = b.data[r][j];
+            for (int i = 0; i < n; i++) 
                 for (int t = 0; t < m; t++) 
-                    c.data[i][j] += data[i][t] * b.data[t][j];
+                    c.data[i][j] += data[i][t] * tmp[t];
+        }
         return c;
     }
     myMatrix mul(float x) {
@@ -228,24 +232,28 @@ int main() {
 
     //// speed test
 
-    int n = 5;
-    int m = 5;
+    int n = 1000;
+    int m = 1000;
     auto p1 = getRandMatrix(n, m);
     auto p2 = getRandMatrix(n, m);
-    long long c1 = clock();
     myMatrix r1 = p1.sc.mul(p2.sc);
-    cerr << (clock() - c1) * 1.0 / CLOCKS_PER_SEC << endl;
-
-    long long c2 = clock();
+    cerr << clock()  * 1.0 / CLOCKS_PER_SEC << endl;
+    long long t = clock();
     Matrix r2 = matrixMul(p1.fr, p2.fr);
-    //cerr << r2 << endl;
-    cerr << (clock() - c2) * 1.0 / CLOCKS_PER_SEC << endl;
-    printM(p1.fr);
-    printM(p2.fr);
-    check(r2, r1); 
-    cerr << "=\n";
-    printM(r2);
-    r1.printM();
+    cerr << (clock() - t)  * 1.0 / CLOCKS_PER_SEC << endl;
+    check(r2, r1);
+    for (int i = 0; i < 10; i++) {
+        int x = rand() % n;
+        int y = rand() % m;
+        cerr << matrixGet(r2, x, y) << endl;
+    }
+
+    //printM(p1.fr);
+    //printM(p2.fr);
+    //check(r2, r1); 
+    //cerr << "=\n";
+    //printM(r2);
+    //r1.printM();
     
 	return 0;
 }

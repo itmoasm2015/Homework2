@@ -72,16 +72,20 @@ matrixGetCols:
 ; return pointer to matrix[row][col]
 ; float* matrixGet(Matrix matrix, unsigned int row, unsigned int col);
 matrixGetAddress:
-    mov  r8, [rdi + 4]  ; r8 = m
-    imul rsi, r8        ; rsi = row * m
-    add  rsi, rdx       ; rsi = row * m + col
-    lea  rax, [rdi + rsi]
+    mov  r8d, [rdi + 4]  ; r8d = m
+    imul esi, r8d        ; esi = row * m
+    add  esi, edx        ; esi = row * m + col
+    lea  rax, [rdi + rsi * 4 + 8]
     ret
 
 ; float matrixGet(Matrix matrix, unsigned int row, unsigned int col);
 matrixGet:
+    push r8
+    push rax
     call matrixGetAddress
     movss xmm0, [rax]
+    pop rax
+    pop r8
     ret
 
 ; void matrixSet(Matrix matrix, unsigned int row, unsigned int col, float value);
@@ -92,28 +96,207 @@ matrixSet:
 
 ; Matrix matrixScale(Matrix matrix, float k);
 matrixScale:
+    ;--allocate new Matrix
+    push r12
+    push r13
     push rdi
-    push rsi
 
-    call matrixGetCols
-    mov rsi, [rdi]
-    mov rdi, [rdi + 4]
-    mov rdi, rax
-    call matrixGetRows
+    mov esi, [rdi + 4]
+    mov edi, [rdi]
+    call matrixNew
 
+    pop rdi
+
+    push rax
+    ;--
+
+    mov  r12d, [rdi]       ; r12d = n
+    mov  r13d, [rdi + 4]   ; r13d = m
+
+    mov  [rax], r12d       ; *rax = n
+    mov  [rax + 4], r13d   ; *(rax + 1) = m
+
+    add  rax, 8            ; rax - point to new matrix
+    add  rdi, 8            ; rdi - pointer to matrix
+
+    imul r12d, r13d        ; r12d = m * n
+
+    ; highest and lowest 32 bits of xmm0 will be equal (float) k
+    ; xmm0 = (k, k, k, k)
+    unpcklps xmm0, xmm0
+    unpcklps xmm0, xmm0
+
+    xor  r13d, r13d
+    .while_r9_less_r8
+        cmp r13d, r12d
+        jge .end_while_r9_less_r8
+
+        movups xmm1, [rdi]
+        mulps  xmm1, xmm0  ; xmm1 = (a[0] * b[0], a[1] * b[1], ..)
+        movups [rax], xmm1
+
+        add rdi, 4 * 4     ; skip 4 floats
+        add rax, 4 * 4
+
+        add r13d, 4        ; go to the nex 4 floats
+        jmp .while_r9_less_r8
+    .end_while_r9_less_r8
+
+    pop rax
+    pop r13
+    pop r12
     ret
 
 ; Matrix matrixAdd(Matrix a, Matrix b);
 matrixAdd:
+    mov  r12d, [rdi]      ; r12d = n
+    mov  r13d, [rdi + 4]  ; r13d = m
 
+    cmp r12d, [rsi]       
+    jne .ret0            ; getRows(a) != getRows(b)
+
+    cmp r13d, [rsi + 4]   
+    jne .ret0            ; getCols(a) != getCols(b)
+
+    ;--allocate new Matrix
+    push rsi
+    push rdi
+
+    mov esi, [rdi + 4]
+    mov edi, [rdi]
+    call matrixNew
+
+    pop rdi
+    pop rsi
+
+    push rax
+    ;--
+
+    mov  [rax], r12d       ; *rax = n
+    mov  [rax + 4], r13d   ; *(rax + 1) = m
+
+    add  rax, 8            ; rax - point to new matrix
+    add  rdi, 8            ; rdi - pointer to matrix a
+    add  rsi, 8            ; rsi - pointer to matrix b
+
+    imul r12d, r13d        ; r12d = m * n
+    xor  r13d, r13d
+    .while_r9_less_r8
+        cmp r13d, r12d
+        jge .end_while_r9_less_r8
+
+        movups xmm0, [rdi]
+        movups xmm1, [rsi]
+        addps  xmm0, xmm1  ; xmm0 = (a[0] + b[0], a[1] + b[1], ..)
+        movups [rax], xmm0
+
+        add rdi, 4 * 4     ; skip 4 floats
+        add rsi, 4 * 4
+        add rax, 4 * 4
+
+        add r13d, 4        ; go to the nex 4 floats
+        jmp .while_r9_less_r8
+    .end_while_r9_less_r8
+
+    pop rax
     ret
+
+    .ret0:
+        mov rax, 0
+        ret
+        
 
 ; Matrix matrixMul(Matrix a, Matrix b);
+; a - [n * m]
+; b - [m * k]
 matrixMul:
+    mov r12d, [rdi]       ; r12d = getRows(a)
+    mov r13d, [rdi + 4]   ; r13d = getCols(a)
 
+    cmp r13d, [rsi]  
+    jne .ret0             ; getCols(a) != getRows(b) 
+
+    ;--allocate new Matrix [n * k]
+    push rsi
+    push rdi
+
+    mov edi, r12d         ; edi = getRows(a)
+    mov esi, [rsi + 4]    ; esi = getCols(b)
+    call matrixNew
+
+    pop rdi
+    pop rsi
+
+    push rax
+    ;--
+
+    ; rdi  = a
+    ; rsi  = b
+    ; rax  = result
+    ; r12d = getRows(a)
+    ; r13d = getCols(a)
+    ; r15d = getCols(b)
+    ; for (sz_t resRow = 0; resRow < getRows(); ++resRow)
+    ;  for (sz_t resCol = 0; resCol < rhs.getCols(); ++resCol)
+    ;    for (sz_t i = 0; i < getCols(); ++i)
+    ;      result[resRow][resCol] += matrix[resRow][i] * rhs[i][resCol];
+    mov r15d, [rsi + 4]
+    xor r8d, r8d
+    .while_r8d_less_rows_a:
+        cmp r8d, r12d
+        jge .end_while_r8d_less_rows_a
+        xor r9d, r9d
+        .while_r9d_less_cols_b:
+            cmp r9d, r15d
+            jge .end_while_r9d_less_cols_b
+            xor r10d, r10d
+            .while_r10d_less_cols_a:
+                cmp r10d, r13d
+                jge .end_while_r10d_less_cols_a
+                push rdi
+                push rsi
+
+                mov  rsi, r8
+                mov  rdx, r10
+                call matrixGet
+                movups xmm1, xmm0
+
+
+                mov rdi, [rsp]
+                mov rsi, r10
+                mov rdx, r9
+                call matrixGet
+                mulss  xmm1, xmm0
+
+                mov rdi, rax
+                mov rsi, r8
+                mov rdx, r9
+                call matrixGet
+                addss xmm0, xmm1
+
+                mov rdi, rax
+                call matrixSet
+
+                pop rsi
+                pop rdi
+
+                inc r10
+                jmp .while_r10d_less_cols_a
+            .end_while_r10d_less_cols_a:
+
+            inc r9
+            jmp .while_r9d_less_cols_b
+        .end_while_r9d_less_cols_b:
+
+        inc r8
+        jmp .while_r8d_less_rows_a
+    .end_while_r8d_less_rows_a:
+
+
+      
     ret
 
-
-
-
+    .ret0:
+        mov rax, 0
+        ret
 

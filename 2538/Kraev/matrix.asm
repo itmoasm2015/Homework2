@@ -202,9 +202,11 @@ matrixCopy:
 matrixScale:
     enter 0, 0
     x86_64_calle_push
+    sub rsp, 4 
     movss [rsp], xmm0 ; save our float to stack. Some calls can spoil it.
     call matrixCopy  ;we need another matrix to calculate.
     movss xmm1, [rsp] ;restore value
+    add rsp, 4
     pshufd xmm1, xmm1, 0 ;copy low bits to all places.
     mov r12, rax ; save our new matrix with the same content into r12
     

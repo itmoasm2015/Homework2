@@ -57,9 +57,11 @@ Matrix matrixAdd(Matrix a, Matrix b);
  */
 Matrix matrixMul(Matrix a, Matrix b);
 
+/**
+ * Transposes matrix a.
+ * \return new transposed matrix.
+ */
 Matrix matrixTranspose(Matrix a);
-
-
 
 #ifdef __cplusplus
 }

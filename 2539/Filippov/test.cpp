@@ -1,7 +1,7 @@
 #include <bits/stdc++.h>
 #include "matrix.h"
 
-const float EPS = 1e-2;
+const float EPS = 1e-5;
 
 class VectorMatrix {
         static const int maxn = 100;
@@ -191,9 +191,9 @@ public:
     }
 
     void testMulMatrix() {
-        unsigned n = rand() % maxn + 1;
-        unsigned m = rand() % maxn + 1;
-        unsigned k = rand() % maxn + 1;
+        unsigned n = rand() % 100 + 1;
+        unsigned m = rand() % 100 + 1;
+        unsigned k = rand() % 20 + 1;
         Matrix matrixA = matrixNew(n, m);
         Matrix matrixB = matrixNew(m, k);
         VectorMatrix vectorMatrixA;
@@ -203,19 +203,20 @@ public:
 
         for (unsigned i = 0; i != n; ++i)
             for (unsigned j = 0; j != m; ++j) {
-                float value = rand() % 100 * 1.f / (rand() % 100 + 1);
+                float value = rand() * 1.f / RAND_MAX - 0.5;
                 matrixSet(matrixA, i, j, value);
                 vectorMatrixA._matrixSet(i, j, value);
             }
          for (unsigned i = 0; i != m; ++i)
             for (unsigned j = 0; j != k; ++j) {
-                float value = rand() % 100 * 1.f / (rand() % 100 + 1);
+                float value = rand() * 1.f / RAND_MAX - 0.5;
                 matrixSet(matrixB, i, j, value);
                 vectorMatrixB._matrixSet(i, j, value);
             }
 
          testsCount++;
          Matrix actual = matrixMul(matrixA, matrixB);
+         actual = matrixMul(matrixA, matrixB);
          VectorMatrix expected = vectorMatrixA._matrixMul(vectorMatrixB);
          expected.assertEquals(actual);
          testsPassed++;
@@ -271,5 +272,12 @@ public:
 int main() {
     Tester tester;
     tester.testAll();
+
+    /*Matrix a = matrixNew(2, 3);
+    Matrix b = matrixNew(3, 4);
+    Matrix c = matrixMul(a, b);
+    for (unsigned i = 0; i != matrixGetRows(c); ++i)
+        for (unsigned j = 0; j != matrixGetCols(c); ++j)
+            printf("%lf%c", matrixGet(c, i, j), " \n"[j + 1 == matrixGetCols(c)]);*/
 } 
 

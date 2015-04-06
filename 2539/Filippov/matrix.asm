@@ -301,14 +301,6 @@ matrixMul:
     pop r13                         ; restoring R13
     pop r12                         ; restoring R12
 
-    ; now let's delete matrix, stored in RSI, we don't need it anymore
-    push rdi                        ; RDI is first matrix, we need to save it
-    push rax                        ; RAX is pointer to new matrix, we need to save it
-    mov rdi, rsi                    ; RDI = RSI -- preparing to call free function
-    call free                       ; removing pointer to RSI
-    pop rax                         ; restoring RAX
-    pop rdi                         ; restoring RDI
-
     mov rsi, rax                    ; moving new matrix to RSI, now RSI is transposed matrix
 .multiplying:
     ; we will multiply matrixes like in matrixScale, matrixAdd: first by groups of 4 cells and then other cells

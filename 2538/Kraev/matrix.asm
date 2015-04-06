@@ -8,7 +8,7 @@ global matrixGet
 global matrixSet
 global matrixScale
 global matrixAdd
- global matrixMul 
+global matrixMul 
 
 
 section .text

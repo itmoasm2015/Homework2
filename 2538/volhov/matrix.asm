@@ -13,6 +13,7 @@ global matrixSet
 global matrixGet
 global matrixScale
 global matrixAdd
+global matrixTranspose
 global matrixMul
 
 extern aligned_alloc
@@ -203,9 +204,6 @@ matrixScale:
 ;;; Matrix matrixAdd(Matrix a, Matrix b);
 matrixAdd:
         push    r12
-        push    r13
-        push    r14
-        push    r15
 
         mov     r10, rdi        ; r10 - matrix a
         mov     r11, rsi        ; r11 - matrix b
@@ -245,10 +243,12 @@ matrixAdd:
         mov     ecx, eax
         mov     rax, r12
 
+        ;; skip metadata
         add     r10, metadata_offset
         add     r11, metadata_offset
         add     r12, metadata_offset
 
+        ;; iterate over 8*32b blocks, sum it, put into r12
         .loop
         vmovups ymm1, [r10]
         vmovups ymm2, [r11]
@@ -265,12 +265,87 @@ matrixAdd:
         .fail
         xor     rax, rax
         .return
-        pop     r15
-        pop     r14
-        pop     r13
         pop     r12
+        ret
+
+matrixTranspose:
+        ;; copy input matrix to r10
+        mov     r10, rdi
+
+        ;; create empty transposed matrix
+        mov     esi, dword[rdi]
+        mov     edi, dword[rdi+4]
+        push    r10
+        call    matrixNew
+        pop     r10
+
+        ;; save it to r11
+        mov     r11, rax
+
+        ;; get ⌈rows⌉, ⌈cols⌉ of new matrix to r8, r9
+        xor     r8, r8
+        xor     r9, r9
+        mov     r8d, dword[r11+8]
+        mov     r9d, dword[r11+12]
+
+        ;; mov r10+⌈rows⌉×⌈cols⌉ (end destination of r10) into rdi
+        xor     rax, rax
+        mov     rax, r8
+        mul     r9
+        mov     rdi, rax
+        add     rdi, r10
+
+        ;; skip metadata
+        add     r10, metadata_offset
+        add     r11, metadata_offset
+
+        ;; rcx holds new row counter, rbx -- new column
+        push    rbx
+        xor     rbx, rbx
+        xor     rcx, rcx
+
+        ;; by-element copy (I don't know how to use sse/avx here effectively)
+        .loop                   ; iterating over rows inside, over columns outside
+        mov     esi, dword[r10] ; move float to esi
+        add     r10, 4          ; skip this float
+        mov     rax, rcx        ; rax -- number of rows
+        mul     r9              ; × width_of_row in cells
+        shl     rax, 2          ; × 4b
+        lea     rax, [rax+4*rbx] ; + column_offset×4
+        mov     dword[r11+rax], esi ; move that floats to current new location
+        inc     rcx             ; continue to next row
+        cmp     rcx, r8
+        jl      .loop           ; go to next row if not end
+
+        xor     rcx, rcx
+        inc     ebx             ; move to next column
+        cmp     rbx, r9
+        jl      .loop           ; if not end, loop
+
+        pop     rbx
+        mov     rax, r11
+        sub     rax, metadata_offset
         ret
 
 ;;; Matrix matrixMul(Matrix a, Matrix b);
 matrixMul:
+        push    r12
+
+        ;; save parameter matrices
+        mov     r10, rdi
+        mov     r11, rsi
+
+        ;; check if a.cols == b.rows
+        mov     r8d, dword[r10+4]
+        mov     r9d, dword[r11]
+        cmp     r8d, r9d
+        jne     .fail
+
+
+
+        jmp     .return
+        .fail
+        xor     rax, rax
+        .return
+        pop     r12
         ret

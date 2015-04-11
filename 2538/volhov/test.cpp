@@ -4,6 +4,9 @@
 
 using namespace std;
 
+extern "C"
+Matrix matrixTranspose(Matrix);
+
 void dumpMatrix(Matrix m) {
     if (m == NULL) {
         printf("NULL MATRIX GIVEN");
@@ -21,12 +24,12 @@ void dumpMatrix(Matrix m) {
 }
 
 int main() {
-    Matrix m = matrixNew(17, 9);
-    float init = 1.2;
+    Matrix m = matrixNew(3, 5);
+    float init = 1;
     for (int i = 0; i < matrixGetRows(m); i++) {
         for (int j = 0; j < matrixGetCols(m); j++) {
             matrixSet(m, i, j, init);
-            init += 1.4;
+            init += 1;
         }
     }
     for (int i = 0; i < min(matrixGetRows(m), matrixGetCols(m)); i++) {
@@ -39,8 +42,9 @@ int main() {
     Matrix n = matrixNew(1,1);
     Matrix sum = matrixAdd(m, m);
     dumpMatrix(sum);
-
-    matrixDelete(m);
+    Matrix sumT = matrixTranspose(sum);
+    dumpMatrix(sumT);
+    //matrixDelete(m);
     //cout << matrixGetRows(m) << endl;
     //cout << matrixGetCols(m) << endl;
     return 1;

@@ -268,6 +268,8 @@ matrixAdd:
         pop     r12
         ret
 
+;;; Matrix matrixTranspose(Matrix);
+;;; transposes matrix (returns new one)
 matrixTranspose:
         ;; copy input matrix to r10
         mov     r10, rdi
@@ -327,25 +329,80 @@ matrixTranspose:
         sub     rax, metadata_offset
         ret
 
+;;; Matrix matrixDirectProduct(
+matrixDirectProduct:
+
 ;;; Matrix matrixMul(Matrix a, Matrix b);
 matrixMul:
         push    r12
+        push    r13
 
         ;; save parameter matrices
         mov     r10, rdi
         mov     r11, rsi
 
         ;; check if a.cols == b.rows
+        ;; A should be n×m, B should be m×k
         mov     r8d, dword[r10+4]
         mov     r9d, dword[r11]
         cmp     r8d, r9d
         jne     .fail
 
+        ;; swap r11 with it's transposition
+        ;; r11 is k×m now
+        mov     rax, r11
+        push    r8
+        push    r9
+        push    r10
+        push    r11
+        call    matrixTranspose
+        pop     r11
+        pop     r10
+        pop     r9
+        pop     r8
+        mov     r11, rax
+
+        ;; create new matrix of size n×k, move it to rax
+        mov     edi, dword[r10]
+        mov     esi, dword[r11]
+        push    r10
+        push    r11
+        call    matrixNew
+        pop     r11
+        pop     r10
+        mov     r12, rax
+
+        ;; save r12 (result)
+        push    r12
+
+        xor     r8, r8
+        xor     r9, r9
+        mov     r8d, dword[r12+8]  ; r8 is ⌈rows⌉ = ⌈n⌉
+        mov     r8d, dword[r12+12] ; r9 is ⌈cols⌉ = ⌈k⌉
+
+        ;; r13 holds size of matrix B in bytes (⌈k⌉×⌈m⌉×4)
+        xor     eax, eax
+        mov     eax, dword[r11+8]
+        mul     dword[r11+12]
+        shl     rax, 2
+        mov     r13, rax
+
+        ;; ebx
+        xor     ecx, ecx
+        xor     ebx, ebx
+
+        .loop
+        vmovups ymm1, [r10]
+        vmovups ymm2, [r11]
+        vmulps  ymm0, ymm1, ymm2
 
 
+        ;; restore pointer to start of result matrix
+        pop     r12
         jmp     .return
         .fail
         xor     rax, rax
         .return
+        pop     r13
         pop     r12
         ret

@@ -350,7 +350,7 @@ matrixMul:
 
         ;; swap r11 with it's transposition
         ;; r11 is k×m now
-        mov     rax, r11
+        mov     rdi, r11
         push    r8
         push    r9
         push    r10
@@ -377,28 +377,74 @@ matrixMul:
 
         xor     r8, r8
         xor     r9, r9
-        mov     r8d, dword[r12+8]  ; r8 is ⌈rows⌉ = ⌈n⌉
-        mov     r8d, dword[r12+12] ; r9 is ⌈cols⌉ = ⌈k⌉
+        mov     r8d, dword[r10+8]  ; r8 is ⌈n⌉
+        mov     r9d, dword[r10+12] ; r9 is ⌈m⌉
 
-        ;; r13 holds size of matrix B in bytes (⌈k⌉×⌈m⌉×4)
+        ;; r13 holds size of matrix B (⌈k⌉×⌈m⌉)
         xor     eax, eax
         mov     eax, dword[r11+8]
         mul     dword[r11+12]
-        shl     rax, 2
         mov     r13, rax
 
-        ;; ebx
-        xor     ecx, ecx
-        xor     ebx, ebx
+        ;; rcx -- counter for ⌈m⌉ elements
+        ;; rbx -- counter for ⌈k⌉×⌈m⌉ elements
+        ;; rdx -- counter for ⌈n⌉ elements
+        xor     rcx, rcx
+        xor     rbx, rbx
+        xor     rdx, rdx
 
+        ;; add metadata
+        add     r10, metadata_offset
+        add     r11, metadata_offset
+        add     r12, metadata_offset
+
+        sub     rsp, 32         ; reserve 32b for ymm saving
         .loop
-        vmovups ymm1, [r10]
-        vmovups ymm2, [r11]
-        vmulps  ymm0, ymm1, ymm2
+        vmovups ymm1, [r10]     ; take 8 floats from the first matrix
+        vmovups ymm2, [r11]     ; take 8 floats from the second matrix
+        vdpps   ymm0, ymm1, ymm2, 255 ; calculate the dot product of ymm1 and ymm2,
+                                ; that is now in ymm0[0:31]+ymm0[128:159]
+        vmovups [rsp], ymm0 ; move ymm0 to the stack reserved place
+        fld     dword[r12]      ; extract current value from new matrix
+        fld     dword[rsp]      ; extract ymm0[0:31]
+        fld     dword[rsp+16]   ; extract ymm0[128:159]
+        faddp                   ; sum them all
+        faddp
+        fstp    dword[r12]      ; save to the proper location
+        add     r10, 32         ; move to next pack
+        add     r11, 32         ; move to next pack
+        add     rbx, 8
+        add     rcx, 8
 
+        cmp     rcx, r9
+        jl      .loop           ; that's the inner loop for 1 row of A (and B)
+
+        sub     r10, r9         ; restore init value of r10 (row start)
+        sub     r10, r9         ; ×4 for bytes
+        sub     r10, r9
+        sub     r10, r9
+
+        add     r12, 4          ; go fill next cell
+
+        xor     rcx, rcx         ; clear rcx counter
+        cmp     rbx, r13         ; check if all matrix B was proceeded
+        jl      .loop            ; middle loop for iterating over B rows
+
+        lea     r10, [r10+4*r9]
+
+        sub     r11, r13        ; lea r11, [r11-4*r13] doesn't work :(
+        sub     r11, r13
+        sub     r11, r13
+        sub     r11, r13
+
+        xor     rbx, rbx
+        inc     rdx
+        cmp     rdx, r8         ; check if we just passed through all A rows
+        jl      .loop           ; outer loop for iterating over A rows
 
         ;; restore pointer to start of result matrix
-        pop     r12
+        add     rsp, 32
+        pop     rax
         jmp     .return
         .fail
         xor     rax, rax

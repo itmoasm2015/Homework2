@@ -19,10 +19,11 @@ global matrixMul
 extern aligned_alloc
 extern free
 
-%define complement_offset 8     ;8 floats fit into ymm* register
-%define metadata_offset 32      ;4 ints + 16b of nothing (for aligning)
+%define complement_offset 8     ; 8 floats fit into ymm* register
+%define metadata_offset 32      ; 4 ints + 16b of nothing (for aligning)
 
 ;;; Matrix matrixNew(unsigned int rows, unsigned int cols);
+;;; Creates new matrix of size
 matrixNew:
         mov     r8, rdi
         mov     r9, rsi
@@ -85,12 +86,12 @@ matrixNew:
         sub     rax, rsi        ; it was spoiled by rep stosd, so sub length
 
         ;; add metadata
-        mov     dword [rax], r8d
-        mov     dword [rax+4], r9d
-        pop     rdi
+        mov     dword [rax], r8d   ; rows
+        mov     dword [rax+4], r9d ; columns
+        pop     rdi                ; restore values for edi/esi -- rounded up rows&cols
         pop     rsi
-        mov     dword [rax+8], edi
-        mov     dword [rax+12], esi
+        mov     dword [rax+8], edi  ; ⌈rows⌉
+        mov     dword [rax+12], esi ; ⌈cols⌉
         jmp     .return
 
         .gotnull
@@ -104,11 +105,13 @@ matrixDelete:
         call    free
         ret
 
+;;; unsigned int matrixGetRows(Matrix matrix);
 matrixGetRows:
         xor     rax, rax
         mov     eax, dword [rdi]
         ret
 
+;;; unsigned int matrixGetCols(Matrix matrix);
 matrixGetCols:
         xor     rax, rax
         mov     eax, dword [rdi+4]
@@ -118,11 +121,14 @@ matrixGetCols:
 matrixGet:
         mov     r8d, dword [rdi]
         mov     r9d, dword [rdi+4]
+
+        ;; check for request in range
+        ;; (I want segfault to emerge if it was requested to get/set element
+        ;; from allocated, but not functional part of array -- between k and ⌈k⌉)
         cmp     esi, r8d
         jge     .failure
         cmp     edx, r9d
         jge     .failure
-
 
         imul    rsi, 4          ; 4 bytes for each float
         imul    rsi, [rdi+12]   ; × ⌈rows⌉
@@ -144,11 +150,12 @@ matrixGet:
 matrixSet:
         mov     r8d, dword [rdi]
         mov     r9d, dword [rdi+4]
+
+        ;; check for request in range
         cmp     esi, r8d
         jge     .failure
         cmp     edx, r9d
         jge     .failure
-
 
         imul    rsi, 4          ; 4 bytes for each float
         imul    rsi, [rdi+12]   ; × ⌈columns⌉
@@ -167,23 +174,40 @@ matrixSet:
         ret
 
 ;;; Matrix matrixScale(Matrix matrix, float k)
+;;; Multiplies matrix (each 8-float pack) with scalar value k.
+;;; AVX instructions used.
 matrixScale:
-        mov     rsi, rdi
+        mov     r10, rdi
         xor     r8, r8
         xor     r9, r9
-        mov     r8d, dword[rdi]    ; rows
-        mov     r9d, dword[rdi+12] ; ⌈columns⌉
-        add     rdi, metadata_offset
+        mov     r8d, dword[r10]    ; rows
+        mov     r9d, dword[r10+12] ; ⌈columns⌉
 
-        ;; move rows×⌈columns⌉×4 into rax
+        ;; move rows×⌈columns⌉×4 into rdx
         mov     rax, r8         ; r8
         mul     r9              ; × r9
-        mov     r10, 4
-        mul     r10             ; x 4b for float
+        shl     rax, 2          ; x 4b for float
+        mov     rdx, rax
 
-        ;; add end of matrix to rsi (that is rdi for now)
-        add     rsi, metadata_offset
-        add     rsi, rax
+        ;; call for a new matrix, save it in r11
+        mov     rdi, r8
+        mov     esi, dword[r10+4]
+        push    r8
+        push    r9
+        push    r10
+        push    rdx
+        call    matrixNew
+        pop     rdx
+        pop     r10
+        pop     r9
+        pop     r8
+        mov     r11, rax
+
+        ;; rcx will hold the address of last pack + 1 of init matrix
+        xor     rcx, rcx
+        add     rcx, metadata_offset
+        add     rcx, rdx
+        add     rcx, r10
 
         ;; move k to 8 cells in ymm1
         sub     rsp, 4
@@ -191,17 +215,26 @@ matrixScale:
         vbroadcastss ymm1, dword[rsp]
         add     rsp, 4
 
+        ;; skip metadata
+        add     r10, metadata_offset
+        add     r11, metadata_offset
+
         ;; for each pack of 8 cells (8 * 32bit = 256bit)
-        ;; scale it with ymm1 containing k
+        ;; scale it with ymm1 containing k and put into res matrix
         .loop
-        vmulps  ymm0, ymm1, [rdi]
-        vmovaps [rdi], ymm0
-        add     rdi, 32         ; 8b * 4b for float
-        cmp     rdi, rsi
+        vmulps  ymm0, ymm1, [r10]
+        vmovups [r11], ymm0
+        add     r10, 32         ; 8b * 4b for float
+        add     r11, 32
+        cmp     r10, rcx
         jl      .loop
+
+        ;; rax was unchanged since matrixNew call, so it holds what it should
         ret
 
 ;;; Matrix matrixAdd(Matrix a, Matrix b);
+;;; The naive sum of two matrices. Packs of 8 floats and vector add from avx
+;;; are used, so it goes faster, I believe.
 matrixAdd:
         push    r12
 
@@ -250,10 +283,10 @@ matrixAdd:
 
         ;; iterate over 8*32b blocks, sum it, put into r12
         .loop
-        vmovups ymm1, [r10]
-        vmovups ymm2, [r11]
+        vmovaps ymm1, [r10]
+        vmovaps ymm2, [r11]
         vaddps  ymm0, ymm1, ymm2
-        vmovups [r12], ymm0
+        vmovaps [r12], ymm0
         add     r10, 32        ; 8 * 4b for vector of floats
         add     r11, 32        ; -//-
         add     r12, 32        ; -//-
@@ -269,7 +302,8 @@ matrixAdd:
         ret
 
 ;;; Matrix matrixTranspose(Matrix);
-;;; transposes matrix (returns new one)
+;;; This inner function is used as helper to matrixMul function,
+;;; which can use avx more properly if the second matrix is transposed.
 matrixTranspose:
         ;; copy input matrix to r10
         mov     r10, rdi
@@ -329,10 +363,17 @@ matrixTranspose:
         sub     rax, metadata_offset
         ret
 
-;;; Matrix matrixDirectProduct(
-matrixDirectProduct:
-
 ;;; Matrix matrixMul(Matrix a, Matrix b);
+;;; a is A, b is B, A is n×m, B should be m×k
+;;; if it's not, then null pointer is returned
+;;; Basically, this function checks the range, creates new transposed version of B,
+;;; creates new result matrix of proper sizes, and then fills with three nested loops.
+;;; Outer loop iterates over rows of matrix A, middle loop iterates over rows of Bᵀ,
+;;; inner loop is for iterating over 8-float packs in rows.
+;;; So we take a row from A, a row from Bᵀ, and for each pack (number of packs in row of
+;;; is equal to number of packs in row of Bᵀ, obviously), calculate the dot product
+;;; with avx instructions and then sum it all into C_{i,j}, where i stands for row
+;;; number in A, and j -- in B.
 matrixMul:
         push    r12
         push    r13
@@ -393,26 +434,26 @@ matrixMul:
         xor     rbx, rbx
         xor     rdx, rdx
 
-        ;; add metadata
+        ;; skip metadata
         add     r10, metadata_offset
         add     r11, metadata_offset
         add     r12, metadata_offset
 
         sub     rsp, 32         ; reserve 32b for ymm saving
         .loop
-        vmovups ymm1, [r10]     ; take 8 floats from the first matrix
-        vmovups ymm2, [r11]     ; take 8 floats from the second matrix
+        vmovaps ymm1, [r10]           ; take 8 floats from the first matrix
+        vmovaps ymm2, [r11]           ; take 8 floats from the second matrix
         vdpps   ymm0, ymm1, ymm2, 255 ; calculate the dot product of ymm1 and ymm2,
-                                ; that is now in ymm0[0:31]+ymm0[128:159]
-        vmovups [rsp], ymm0 ; move ymm0 to the stack reserved place
-        fld     dword[r12]      ; extract current value from new matrix
-        fld     dword[rsp]      ; extract ymm0[0:31]
-        fld     dword[rsp+16]   ; extract ymm0[128:159]
-        faddp                   ; sum them all
+                                      ; that is now in ymm0[0:31]+ymm0[128:159]
+        vmovups [rsp], ymm0           ; move ymm0 to the stack reserved place
+        fld     dword[r12]            ; extract current value from new matrix
+        fld     dword[rsp]            ; extract ymm0[0:31]
+        fld     dword[rsp+16]         ; extract ymm0[128:159]
+        faddp                         ; sum them all
         faddp
-        fstp    dword[r12]      ; save to the proper location
-        add     r10, 32         ; move to next pack
-        add     r11, 32         ; move to next pack
+        fstp    dword[r12]            ; save to the proper location
+        add     r10, 32               ; move to next pack
+        add     r11, 32               ; move to next pack
         add     rbx, 8
         add     rcx, 8
 
@@ -444,7 +485,7 @@ matrixMul:
 
         ;; restore pointer to start of result matrix
         add     rsp, 32
-        pop     rax
+        pop     rax             ; that's stored before matrix
         jmp     .return
         .fail
         xor     rax, rax

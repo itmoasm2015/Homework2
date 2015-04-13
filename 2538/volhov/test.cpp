@@ -36,6 +36,8 @@ int main() {
     for (int i = 0; i < min(matrixGetRows(m), matrixGetCols(m)); i++) {
         matrixSet(m, i, i, 0);
     }
+    dumpMatrix(m);
+    m = matrixScale(m, 2);
     init = 2;
     for (int i = 0; i < matrixGetRows(n); i++) {
         for (int j = 0; j < matrixGetCols(n); j++) {
@@ -51,8 +53,21 @@ int main() {
     dumpMatrix(n);
     Matrix mul = matrixMul(m, n);
     dumpMatrix(mul);
+    Matrix k = matrixNew(22, 17);
+    for (int i = 0; i < matrixGetRows(k); i++) {
+        for (int j = 0; j < matrixGetCols(k); j++) {
+            matrixSet(k, i, j, 2);
+        }
+    }
+    Matrix sum = matrixAdd(m, k);
+    dumpMatrix(sum);
+    Matrix sc = matrixScale(sum, 0.5f);
+    dumpMatrix(sc);
     matrixDelete(m);
     matrixDelete(n);
+    matrixDelete(k);
+    matrixDelete(sum);
+    matrixDelete(sc);
     //cout << matrixGetRows(m) << endl;
     //cout << matrixGetCols(m) << endl;
     return 1;

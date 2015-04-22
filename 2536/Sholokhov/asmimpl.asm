@@ -113,7 +113,8 @@ matrixNew:		push	rdi
 	;;  Uses:
 	;;  	R8 - Matrix matrix (=RDI)
 
-matrixCopy:	mov	r11, [rdi + cols]
+matrixCopy:	push	r12
+		mov	r11, [rdi + cols]
 		mov	r10, [rdi + rows]
 		mov	r12, rdi
 		mov	rdi, r10
@@ -128,6 +129,7 @@ matrixCopy:	mov	r11, [rdi + cols]
 		mov	rdi, [rax + cells]
 		cld
 		rep	movsd
+		pop	r12
 		ret
 
 	;;void matrixDelete(Matrix matrix);

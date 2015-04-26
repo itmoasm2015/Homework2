@@ -22,6 +22,9 @@ int main(int argc, char* argv [])
 	printf("%f\n", matrixElement);
 	matrixElement = matrixGet(matrix, 1234, 5678);
 	printf("%f\n", matrixElement);
+	void* matrixScaled  = matrixScale(matrix, 2.1);
+	matrixElement = matrixGet(matrixScaled, 1234, 5677);
+	printf("%f\n", matrixElement);
 	
 }
 #ifdef __cplusplus

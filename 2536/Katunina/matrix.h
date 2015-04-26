@@ -34,7 +34,7 @@ void matrixSet(Matrix matrix, unsigned int row, unsigned int col, float value);
 * Multiply matrix by a scalar.
 * \return new matrix.
 */
-//Matrix matrixScale(Matrix matrix, float k);
+Matrix matrixScale(Matrix matrix, float k);
 /**
 * Add two matrices.
 * \return new matrix or 0 if the sizes don't match.

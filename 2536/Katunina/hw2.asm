@@ -110,9 +110,9 @@ matrixScale:
     imul rax, [r8+cols_rounded_offset]
     mov rcx, 0
 .loop:
-    mov ymm1, [rcx] 
+    vmovups ymm1, [rcx] 
     vmulps ymm1, ymm2,ymm0 
-    mov [r9+rcx], ymm1
+    vmovups [r9+rcx], ymm1
     add rcx, matrix_offset
     cmp rcx, rax
     jne .loop 

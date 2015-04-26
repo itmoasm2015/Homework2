@@ -74,32 +74,30 @@ matrixGetRows:
 matrixGetCols:
     mov rax, [rdi+8]
     ret
-
-;rdi+((rsi-1)*([rdi+24])+rdx-1)*4+32, [rdi+24] - rounded up to 4 columns, 32 - to skip bytes for rows and columns    
+    
 matrixGet:
+    call calculateMatrixElementAddress
+    mov eax, [rdi]
+    movd xmm0, eax
+    ret 
+
+;rdi+((rsi-1)*([rdi+24])+rdx-1)*4+32, [rdi+24] - rounded up to 4 columns, 32 - to skip bytes for rows and columns
+calculateMatrixElementAddress:
     sub rsi, 1
     imul rsi, [rdi+24]
     add rdi, 32
     add rsi, rdx
     sub rsi, 1
     imul rsi, 4
-    mov eax, [rdi+rsi]
-    movd xmm0, eax
-    ret 
-    
-matrixSet:
-    sub rsi, 1
-    imul rsi, [rdi+24]
-    add rdi, 32
-    add rsi, rdx
-    sub rsi, 1
-    imul rsi, 4 
-    mov rax, rdi
-    add rax, rsi
-    movd [rax], xmm0
+    add rdi, rsi
     ret
     
-
+matrixSet:
+    call calculateMatrixElementAddress
+    movd [rdi], xmm0
+    ret
+    
+matrixScale:
     
                                 
     

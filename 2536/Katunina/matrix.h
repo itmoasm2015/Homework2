@@ -29,7 +29,7 @@ float matrixGet(Matrix matrix, unsigned int row, unsigned int col);
 /**
 * Set matrix element.
 */
-//void matrixSet(Matrix matrix, unsigned int row, unsigned int col, float value);
+void matrixSet(Matrix matrix, unsigned int row, unsigned int col, float value);
 /**
 * Multiply matrix by a scalar.
 * \return new matrix.

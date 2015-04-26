@@ -15,6 +15,14 @@ int main(int argc, char* argv [])
 	printf("%d %d\n", rows, cols);
 	float matrixElement = matrixGet(matrix, 1234, 300);
 	printf("%f\n", matrixElement);
+	matrixSet(matrix,1234,5677,5.43);
+	matrixElement = matrixGet(matrix, 1234, 5676);
+	printf("%f\n", matrixElement);
+	matrixElement = matrixGet(matrix, 1234, 5677);
+	printf("%f\n", matrixElement);
+	matrixElement = matrixGet(matrix, 1234, 5678);
+	printf("%f\n", matrixElement);
+	
 }
 #ifdef __cplusplus
 }

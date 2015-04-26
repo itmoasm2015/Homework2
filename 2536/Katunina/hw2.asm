@@ -1,5 +1,8 @@
 section .text
 
+%define float_size 4
+%define service_info_size 8
+ 
 extern calloc
 extern free
 
@@ -13,27 +16,29 @@ global matrixScale
 global matrixAdd
 global matrixMul
 
-;matrix structure: 4 bytes for original number of rows, 4 - for original number of columns, 4 - for rounded up to four number of rows, 
-;4 - for rounded up to four number of columns, rounded_rows*rounded_columns bytes for sequence of matrix' rows
+;matrix structure: 4 bytes for original number of rows, 4 - for original number of columns, 4 - for rounded up to eight number of rows, 
+;4 - for rounded up to eight number of columns, rounded_rows*rounded_columns bytes for sequence of matrix' rows
 
 ;rows in rdi (32 bits), columns in rsi (32 bits)
 matrixNew:
     mov r8, rdi
     mov rcx, rsi
     
-    add rdi, 3
-    and rdi, 0xFFFFFFFFFFFFFFFC;these two lines for rounding rows up to four
+    add rdi, 7
+    and rdi, 0xFFFFFFFFFFFFFFF8;these two lines for rounding rows up to eight
     mov r9, rdi
    
-    add rsi, 3
-    and rsi, 0xFFFFFFFFFFFFFFFC;these two lines for rounding columns up to four
+    add rsi, 7
+    and rsi, 0xFFFFFFFFFFFFFFF8;these two lines for rounding columns up to eight
     mov r10, rsi
     
     imul rdi, rsi
     mov rax, rdi;imul with one argument multiplies argument by rax
-    mov r11, 4
+    mov r11, float_size
     imul r11
-    add rax, 32;original rows, original columns, rounded rows, rounded columns in bytes
+    mov r12, service_info_size
+    imul r12, 4
+    add rax, r12;original rows, original columns, rounded rows, rounded columns in bytes
     cmp rdx, 0;overflow?
     jne .overflow
     mov rdi, rax
@@ -53,9 +58,12 @@ matrixNew:
     pop r8
     
     mov [rax], r8    
-    mov [rax+8], rcx
-    mov [rax+16], r9
-    mov [rax+24], r10
+    mov [rax+service_info_size], rcx
+    mov r12, service_info_size
+    imul r12, 2
+    mov [r12], r9
+    add r12, service_info_size
+    mov [r12], r10
     
     ret
     
@@ -75,7 +83,7 @@ matrixGetRows:
 
 ;matrix in rdi    
 matrixGetCols:
-    mov rax, [rdi+8]
+    mov rax, [rdi+service_info_size]
     ret
 
 ;matrix in rdi, rows in rsi, cols in rdx    
@@ -85,14 +93,17 @@ matrixGet:
     movd xmm0, eax
     ret 
 
-;rdi+((rsi-1)*([rdi+24])+rdx-1)*4+32, [rdi+24] - rounded up to 4 columns, 32 - to skip bytes for rows and columns
+;rdi+((rsi-1)*([rdi+24])+rdx-1)*4+32, [rdi+24] - rounded up to 8 columns, 32 - to skip bytes for rows and columns
 calculateMatrixElementAddress:
     sub rsi, 1
-    imul rsi, [rdi+24]
-    add rdi, 32
+    mov r12, service_info_size
+    imul r12, 3
+    imul rsi, [rdi+r12]
+    add r12, service_info_size
+    add rdi, r12
     add rsi, rdx
     sub rsi, 1
-    imul rsi, 4
+    imul rsi, float_size
     add rdi, rsi
     ret
 
@@ -106,7 +117,7 @@ matrixSet:
 matrixScale:
     mov r8, rdi
     mov rdi, [r8]
-    mov rsi, [r8+8]
+    mov rsi, [r8+service_info_size]
     call matrixNew
      
                                 

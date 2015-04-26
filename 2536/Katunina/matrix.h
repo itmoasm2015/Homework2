@@ -25,7 +25,7 @@ unsigned int matrixGetCols(Matrix matrix);
 /**
 * Get matrix element.
 */
-void matrixGet(Matrix matrix, unsigned int row, unsigned int col);
+float matrixGet(Matrix matrix, unsigned int row, unsigned int col);
 /**
 * Set matrix element.
 */

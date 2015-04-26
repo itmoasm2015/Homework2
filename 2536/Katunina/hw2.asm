@@ -82,7 +82,8 @@ matrixGet:
     add rdi, 32
     add rsi, rdx
     imul rsi, 4
-    mov xmm0, [rdi+rsi]
+    mov eax, [rdi+rsi]
+    movd xmm0, eax
     ret 
                                 
     

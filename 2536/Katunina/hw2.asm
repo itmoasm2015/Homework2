@@ -62,19 +62,23 @@ matrixNew:
 .overflow:
     mov rax, 0
     ret
-    
+
+;matrix in rdi    
 matrixDelete:
     call free
     ret
-    
+
+;matrix in rdi    
 matrixGetRows:
     mov rax, [rdi]
     ret
-    
+
+;matrix in rdi    
 matrixGetCols:
     mov rax, [rdi+8]
     ret
-    
+
+;matrix in rdi, rows in rsi, cols in rdx    
 matrixGet:
     call calculateMatrixElementAddress
     mov eax, [rdi]
@@ -91,14 +95,20 @@ calculateMatrixElementAddress:
     imul rsi, 4
     add rdi, rsi
     ret
-    
+
+;matrix in rdi, rows in rsi, cols in rdx, value in xmm0            
 matrixSet:
     call calculateMatrixElementAddress
     movd [rdi], xmm0
     ret
-    
+
+;matrix in rdi, scale in xmm0
 matrixScale:
-    
+    mov r8, rdi
+    mov rdi, [r8]
+    mov rsi, [r8+8]
+    call matrixNew
+     
                                 
     
                                 

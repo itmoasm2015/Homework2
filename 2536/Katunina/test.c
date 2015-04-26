@@ -13,8 +13,9 @@ int main(int argc, char* argv [])
 	rows = matrixGetRows(matrix);
 	cols = matrixGetCols(matrix);
 	printf("%d %d\n", rows, cols);
-	float matrixElement = matrixGet(matrix, 1234, 300);
-	printf("%d\n", matrixElement);
+	//float matrixElement = matrixGet(matrix, 1234, 300);
+	//printf("%f\n", matrixElement);
+	matrixGet(matrix, 1234, 300);
 }
 #ifdef __cplusplus
 }

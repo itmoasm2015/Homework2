@@ -75,12 +75,17 @@ matrixGetCols:
     mov rax, [rdi+8]
     ret
 
-;rdi+(rsi*([rdi+24])+rdx)*4+32, [rdi+24] - rounded up to 4 columns, 32 - to skip bytes for rows and columns    
+;rdi+((rsi-1)*([rdi+24])+rdx)*4+32, [rdi+24] - rounded up to 4 columns, 32 - to skip bytes for rows and columns    
 matrixGet:
-    add rdi, rdx
+    sub rsi, 1
+    imul rsi, [rdi+24]
+    add rdi, 32
+    add rsi, rdx
     imul rsi, 4
-    mov rax, [rdx+rsi]
-    ret
+    mov xmm0, [rdi+rsi]
+    ret 
+                                
+    
                                 
     
     

@@ -63,22 +63,35 @@ endstruc
 	;; aligns stack, and call function with given args
 	;; saves registers
 	;; result in Res
-%macro aligned_call 3
-	push rbp
+%macro aligned_call 2
 	push Arg1
-	push Arg2
-	push Arg3
-	mov rbp, rsp
 	mov Arg1, %2
-	mov Arg2, %3	
+	push rbp
+	mov rbp, rsp
 	and rsp, ~15	; align the stack 
 	call %1
 	mov rsp, rbp	; restore stack pointer
-	pop Arg3
-	pop Arg2
-	pop Arg1
 	pop rbp
+	pop Arg1
 %endmacro
+
+;call with 2 args
+%macro aligned_call2 3
+	push Arg2
+	mov Arg2, %3
+	aligned_call %1, %2
+	pop Arg2
+%endmacro
+
+;call with 3 args
+%macro aligned_call3 4
+	push Arg3
+	mov Arg3, %4
+	aligned_call2 %1, %2, %3
+	pop Arg3
+%endmacro
+
+
 
 
 ;Matrix matrixNew(unsigned int rows, unsigned int cols);
@@ -86,24 +99,24 @@ matrixNew:
     begin
     mov r12, Arg1	; save input
     mov r13, Arg2
-    aligned_call malloc, matrix_size, 0	; allocate memory for struct
+    aligned_call malloc, matrix_size	; allocate memory for struct
     test Res, Res 
     jz .end 			;allocation failed
     mov r14, Res 		;save struc pointer
     ;;set rows and cols
     mov [r14 + matrix.rows], r12
     mov [r14 + matrix.cols], r13
-    align_4 Arg1		;calculate aligned rows and cols
-    align_4 Arg2
-    mov [r14 + matrix.rows_aligned], Arg1
-    mov [r14 + matrix.cols_aligned], Arg2
+    align_4 r12		;calculate aligned rows and cols
+    align_4 r13
+    mov [r14 + matrix.rows_aligned], r12
+    mov [r14 + matrix.cols_aligned], r13
 
     ;; calc needed memory for data
-    mov rax, Arg1
-    mul Arg2
+    mov rax, r12
+    mul r13
     ;;allocate zero-filled memory for data
     ;;void* calloc (size_t num, size_t size);
-    aligned_call calloc, rax, 4
+    aligned_call2 calloc, rax, 4
     test Res, Res
     jz .calloc_fail 	;allocation failed
     mov [r14 + matrix.ptr], Res
@@ -111,7 +124,7 @@ matrixNew:
     jmp .end
 
     .calloc_fail:		;;allocation for data failed, but memory for struc was allocated -> free it
-    	aligned_call free, r14, 0
+    	aligned_call free, r14
     .end:
     end
 
@@ -120,8 +133,8 @@ matrixNew:
 matrixDelete:
 	begin
 	mov r12, [Arg1 + matrix.ptr]
-	aligned_call free, r12, 0		;free data
-	aligned_call free, Arg1, 0		;free struc
+	aligned_call free, r12		;free data
+	aligned_call free, Arg1		;free struc
     end
 
 ;unsigned int matrixGetRows(Matrix matrix)
@@ -165,11 +178,56 @@ matrixSet:
 
 ;Matrix matrixCopy(Matrix matrix)
 matrixCopy:
-    ret
+    begin
+    mov r12, Arg1		;save pointer
+    mov Arg1, [r12 + matrix.rows]
+    mov Arg2, [r12 + matrix.cols]
+    call matrixNew   
+    mov r14, Res 					;save pointer to copy
+
+    ;; calc size
+    mov r15, [r12 + matrix.cols_aligned]
+    mov rax, [r12 + matrix.rows_aligned]
+    mul r15
+    lea rax, [rax * 4]		;size in bytes   
+    mov r12, [r12 + matrix.ptr] 	;pointer to source data
+    mov r13, [r14 + matrix.ptr]		;pointer to new matrix data	
+    ;;void * memcpy ( void * destination, const void * source, size_t num );
+    aligned_call3 memcpy, r13, r12, rax
+    mov Res, r14
+    end
 
 ;Matrix matrixScale(Matrix matrix, float k)
 matrixScale:
-    ret
+	begin
+
+
+	sub rsp, 4
+	movss [rsp], xmm0		 ;save k on stack, function call can spoil xmm
+	call matrixCopy
+	movss xmm1, [rsp]
+	add rsp, 4
+	pshufd xmm1, xmm1, 0 ;copy low bits to all places
+
+	
+	mov r12, Res 		;new Matrix pointer
+
+	mov r14, [r12 + matrix.rows_aligned]
+	mov rax, [r12 + matrix.cols_aligned]
+	mul r14 		;calculate size
+	mov r13, [r12 + matrix.ptr] ; data pointer 
+
+	.loop:
+		movups xmm0, [r13]		;take 4 floats
+		mulps xmm0, xmm1
+		movups [r13], xmm0		;save new value
+		lea r13, [r13 + 16]
+		sub rax, 4
+		jnz .loop
+
+	.end:
+	mov Res, r12
+    end
 
 ;Matrix matrixAdd(Matrix a, Matrix b)
 matrixAdd:

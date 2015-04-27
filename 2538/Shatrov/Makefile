@@ -27,3 +27,4 @@ clean:
 	rm -f test.o
 	rm -f matrix.o
 	rm -f osx-wrapper.o
+	rm -f libhw.a
